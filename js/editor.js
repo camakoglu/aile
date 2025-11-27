@@ -14,11 +14,22 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
         const sidebar = document.getElementById('family-sidebar');
         const titleEl = document.getElementById('sidebar-title');
         const detailsEl = document.getElementById('sidebar-details');
+        const imageEl = document.getElementById('sidebar-image');
     const btnParents = document.getElementById('btn-parents');
     const btnChildren = document.getElementById('btn-children');
     
     // Set Title
     titleEl.innerText = name;
+
+    // Set Image
+    const imagePath = get_image_path(node_of_dag);
+    if (imagePath && imagePath !== "") {
+        imageEl.src = imagePath;
+        imageEl.style.display = "inline-block";
+    } else {
+        imageEl.style.display = "none";
+        imageEl.src = "";
+    }
     
     // Set Details
     const keyMap = {
@@ -39,7 +50,7 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
         const data = node_of_dag.added_data.input;
         for (const [key, value] of Object.entries(data)) {
             if (typeof value != "string" || key.startsWith("_") || value === "") continue;
-            if (key === "image_path" || key === "id") continue;
+            if (key === "image_path" || key === "id" || key === "name") continue;
             
             let displayVal = value;
             if (value.startsWith("http")) displayVal = `<a href="${value}" target="_blank">Bağlantı</a>`;
