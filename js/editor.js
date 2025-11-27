@@ -10,9 +10,10 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
 	    // 2. Get Data
 	    let name = get_name(node_of_dag) || "İsimsiz";
 	    
-	    // 3. Populate Sidebar    const sidebar = document.getElementById('family-sidebar');
-    const titleEl = document.getElementById('sidebar-title');
-    const detailsEl = document.getElementById('sidebar-details');
+	    // 3. Populate Sidebar
+        const sidebar = document.getElementById('family-sidebar');
+        const titleEl = document.getElementById('sidebar-title');
+        const detailsEl = document.getElementById('sidebar-details');
     const btnParents = document.getElementById('btn-parents');
     const btnChildren = document.getElementById('btn-children');
     
@@ -20,17 +21,32 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
     titleEl.innerText = name;
     
     // Set Details
+    const keyMap = {
+        "name": "Ad Soyad",
+        "birth_date": "Doğum Tarihi",
+        "death_date": "Ölüm Tarihi",
+        "birthplace": "Doğum Yeri",
+        "occupation": "Meslek",
+        "note": "Not",
+        "marriage": "Evlilik Tarihi",
+        "second_names": "İkinci İsimler",
+        "anne": "Anne Adı",
+        "baba": "Baba Adı"
+    };
+
     let detailsHtml = "";
     if (is_member(node_of_dag)) {
         const data = node_of_dag.added_data.input;
         for (const [key, value] of Object.entries(data)) {
             if (typeof value != "string" || key.startsWith("_") || value === "") continue;
-            if (key === "image_path") continue;
+            if (key === "image_path" || key === "id") continue;
             
             let displayVal = value;
             if (value.startsWith("http")) displayVal = `<a href="${value}" target="_blank">Bağlantı</a>`;
             
-            detailsHtml += `<div class="info-row"><span class="info-label">${key}:</span> ${displayVal}</div>`;
+            let displayKey = keyMap[key] || key; // Translate or use original
+            
+            detailsHtml += `<div class="info-row"><span class="info-label">${displayKey}:</span> ${displayVal}</div>`;
         }
     } else {
         detailsHtml = "<em>Aile Bağlantısı</em>";
