@@ -78,6 +78,12 @@
 			attr("width", document.body.offsetWidth).
 			attr("height", document.documentElement.clientHeight);
             
+        // Handle Window Resize
+        window.addEventListener("resize", () => {
+            svg.attr("width", document.body.offsetWidth)
+               .attr("height", document.documentElement.clientHeight);
+        });
+            
         const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzo66Bb8-z3QdqtNGZ9uhQJZJxePifl6nJwvtlot-3JtKp4YKYQdqJNFDY89lqHoMRdlKZmjWzh2OA/pub?output=csv";
 
         async function initApp() {
