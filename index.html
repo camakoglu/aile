@@ -17,10 +17,25 @@
         </div>
         
         <div class="sidebar-content">
+            <!-- Profile Image -->
+            <div class="sidebar-section" style="text-align: center; margin-bottom: 15px;">
+                <img id="sidebar-image" src="" alt="Fotoğraf" style="max-width: 100%; max-height: 200px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: none;">
+            </div>
+            
+            <!-- Dynamic Details -->
+            <div class="sidebar-section">
+                <div id="sidebar-details"></div>
+            </div>
+
             <!-- Action Buttons -->
             <div class="sidebar-section">
                 <button id="btn-parents" class="action-btn btn-primary">Ataları Göster (Anne/Baba)</button>
                 <button id="btn-children" class="action-btn btn-primary">Torunları Göster (Çocuklar)</button>
+            </div>
+            
+            <!-- Meta -->
+            <div class="sidebar-section">
+                <button id="btn-open-sheet" class="action-btn btn-secondary" onclick="openSheet()">Google Tablosunu Aç</button>
             </div>
 
             <!-- Upload Section -->
@@ -34,16 +49,6 @@
                 </div>
             </div>
 
-            <!-- Dynamic Details -->
-            <div class="sidebar-section">
-                <h4 style="margin-top:0; color:#333;">Detaylar</h4>
-                <div id="sidebar-details"></div>
-            </div>
-            
-            <!-- Meta -->
-            <div class="sidebar-section">
-                <button id="btn-open-sheet" class="action-btn btn-secondary" onclick="openSheet()">Google Tablosunu Aç</button>
-            </div>
         </div>
     </aside>
 
