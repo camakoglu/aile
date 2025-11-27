@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<meta charset="utf-8" />
+<meta name="robots" content="noindex" />
+<meta name="AdsBot-Google" content="noindex" />
+<title>Çamakoğlu Sülalesi</title>
+<link rel="stylesheet" href="css/familienbaum.css">
+</head>
+
+<body>
+	<script src="js/d3.v7.min.js"></script>
+	<script src="js/dag.js"></script>
+	<script src="js/dag_layout.js"></script>
+	<script src="js/dag_with_relations.js"></script>
+	<script src="js/dag_with_family_data.js"></script>
+	<script src="js/dag_relaxation.js"></script>
+	<script src="js/familienbaum.js"></script>
+    <script src="js/sheet_loader.js"></script>
+	<script>
+		// Add an SVG tag
+		const svg = d3.select("body").append("svg").
+			attr("width", document.body.offsetWidth).
+			attr("height", document.documentElement.clientHeight);
+		
+        // App Logic
+        const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzo66Bb8-z3QdqtNGZ9uhQJZJxePifl6nJwvtlot-3JtKp4YKYQdqJNFDY89lqHoMRdlKZmjWzh2OA/pub?output=csv";
+
+        async function initApp() {
+            let inputData = null;
+            
+            // 1. Try Network
+            try {
+                console.log("Attempting to load data from:", SHEET_URL);
+                inputData = await loadFromGoogleSheet(SHEET_URL);
+                // Save to cache on success
+                localStorage.setItem('soyagaci_cached_data', JSON.stringify(inputData));
+            } catch (e) {
+                console.warn("Network load failed:", e);
+            }
+
+            // 2. Try Cache if network failed
+            if (!inputData) {
+                const cached = localStorage.getItem('soyagaci_cached_data');
+                if (cached) {
+                    try {
+                        console.log("Loading data from local cache...");
+                        inputData = JSON.parse(cached);
+                    } catch (e) {
+                        console.warn("Cache parse failed:", e);
+                    }
+                }
+            }
+
+            // 3. Fallback to static local file
+            if (!inputData && typeof _input !== 'undefined') {
+                console.log("Falling back to local js/input.js data.");
+                inputData = _input;
+            }
+
+            if (!inputData) {
+                alert("Failed to load family tree data. Please check your internet connection.");
+                return;
+            }
+
+            // 4. Restore View State (Last visited person)
+            const lastNodeId = localStorage.getItem('soyagaci_last_node');
+            if (lastNodeId && inputData.members[lastNodeId]) {
+                console.log("Restoring last position:", lastNodeId);
+                inputData.start = lastNodeId;
+            }
+
+            let familienbaum = new Familienbaum(inputData, svg);
+            familienbaum.draw();
+        }
+
+        initApp();
+	</script>
+</body>
+
+</html>

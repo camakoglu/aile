@@ -1,0 +1,95 @@
+body {
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	background: #953240;
+}
+
+input {
+	font: 12pt sans-serif;
+	background: #953240;
+	color: white;
+}
+
+label {
+	font: 12pt sans-serif;
+	background: #953240;
+	color: white;
+}
+
+button {
+	padding: 8px 8px;
+	font: 12pt sans-serif;
+	background: #303030;
+	color: white;
+}
+
+image {
+	filter: saturate(75%)
+}
+
+a {
+	text-decoration: none;
+	color: lightblue;
+}
+
+.member {
+	fill: #3e79C9;
+	stroke-width: 2px;
+	z-index: 8;
+}
+
+.family {
+	fill: #953240;
+	stroke: #3e79C9;
+	stroke-width: 2px;
+	z-index: 7;
+}
+
+.highlighted {
+	fill: #3e79C9;
+	stroke: white;
+	stroke-width: 3px;
+}
+
+.non-highlighted {
+	fill: #3e79C9;
+	stroke: #3e79C9;
+	stroke-width: 3px;
+}
+
+.node-label {
+	font: 12px sans-serif;
+	fill: white;
+	fill-opacity: 1;
+	z-index: 9;
+}
+
+.plus-label {
+	font: 24px sans-serif;
+	fill: white;
+	fill-opacity: 0.75;
+	z-index: 6;
+}
+
+.link {
+	fill: none;
+	stroke: #3e79C9;
+	stroke-width: 2px;
+	z-index: 6;
+}
+
+.editing_div {
+	position: absolute;
+	top: 8px;
+	left: 8px;
+	z-index: 10;
+}
+
+.info-text {
+	font: 24pt sans-serif;
+	fill: white;
+	fill-opacity: 1;
+	text-anchor: end;
+	z-index: 9;
+}
