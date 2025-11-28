@@ -141,9 +141,6 @@
                     <button id="delete-photo-btn"
                         style="display: none; position: absolute; top: 8px; right: 8px; background: #c84b4b; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 20px; font-weight: bold; line-height: 1; padding: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: all 0.2s ease;">×</button>
                 </div>
-                <div id="upload-status"
-                    style="font-size: 0.95rem; color: #718096; margin-top: 12px; min-height: 1.2em; font-weight: 500;">
-                </div>
                 <input type="file" id="image-upload-input" accept="image/*" style="display: none;">
             </div>
 
@@ -153,7 +150,7 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="sidebar-section">
+            <div class="sidebar-section" style="display: flex; flex-direction: column; gap: 10px;">
                 <button id="btn-parents" class="action-btn btn-primary">Ataları Göster (Anne/Baba)</button>
                 <button id="btn-children" class="action-btn btn-primary">Torunları Göster (Çocuklar)</button>
             </div>

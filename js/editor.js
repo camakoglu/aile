@@ -191,18 +191,18 @@ function renderFormFields(container, data) {
     fieldsToEdit.forEach(field => {
         const value = data[field.key] || "";
 
-        html += `<div class="info-row">
-                <label class="info-label">${field.label}</label>`;
+        html += `<div class="info-row">`;
 
         if (field.type === "select") {
-            html += `<select class="sidebar-input" data-key="${field.key}">`;
+            html += `<select class="sidebar-input" data-key="${field.key}">
+                        <option value="" disabled ${value === "" ? "selected" : ""}>${field.label}</option>`;
             field.options.forEach(opt => {
                 const selected = value === opt.value ? 'selected' : '';
                 html += `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
             });
             html += `</select>`;
         } else {
-            html += `<input type="text" class="sidebar-input" data-key="${field.key}" value="${value}">`;
+            html += `<input type="text" class="sidebar-input" data-key="${field.key}" value="${value}" placeholder="${field.label}">`;
         }
 
         html += `
@@ -229,9 +229,9 @@ function showAddChildForm(node) {
     // Reset pending photo
     pendingChildPhoto = null;
 
-    // Clear upload status from previous operations
-    const uploadStatus = document.getElementById('upload-status');
-    uploadStatus.innerText = "";
+    // Clear upload status from previous operations (if any)
+    const statusEl = document.getElementById('save-status');
+    if (statusEl) statusEl.innerText = "";
 
     // Hide delete photo button (no photo yet for new child)
     const deletePhotoBtn = document.getElementById('delete-photo-btn');
@@ -525,11 +525,15 @@ async function deleteChild(node) {
 
 
 // Function to handle the actual upload
+// Function to handle the actual upload
 async function uploadPhoto(file, node) {
-    const uploadStatus = document.getElementById('upload-status');
+    const statusEl = document.getElementById('save-status'); // Use save-status instead
     const sidebarImage = document.getElementById('sidebar-image');
-    uploadStatus.innerText = "Yükleniyor...";
-    uploadStatus.style.color = "orange";
+
+    if (statusEl) {
+        statusEl.innerText = "Yükleniyor...";
+        statusEl.style.color = "orange";
+    }
 
     try {
         if (!node || !node.data.startsWith("mem_")) {
@@ -575,18 +579,22 @@ async function uploadPhoto(file, node) {
                 .attr("href", temporaryImageUrl);
         }
 
-        uploadStatus.innerText = "Yüklendi! (Kalıcı olması 5-10 dk sürebilir)";
-        uploadStatus.style.color = "green";
-
-        // Optional: We can set a timeout to clear the status
-        setTimeout(() => {
-            uploadStatus.innerText = "";
-        }, 5000);
+        if (statusEl) {
+            statusEl.innerText = "Yüklendi! (Kalıcı olması 5-10 dk sürebilir)";
+            statusEl.style.color = "green";
+            setTimeout(() => {
+                statusEl.innerText = "";
+            }, 5000);
+        }
 
     } catch (error) {
         console.error("Fotoğraf yüklenirken hata oluştu:", error);
-        uploadStatus.innerText = `Hata: ${error.message}`;
-        uploadStatus.style.color = "red";
+        if (statusEl) {
+            statusEl.innerText = `Hata: ${error.message}`;
+            statusEl.style.color = "red";
+        } else {
+            alert(`Hata: ${error.message}`);
+        }
     } finally {
         // Clear the file input after upload attempt
         document.getElementById('image-upload-input').value = '';
@@ -699,18 +707,18 @@ Familienbaum.prototype.create_editing_form = function (node_of_dag, node_of_dag_
             const displayKey = keyMap[field.key] || field.key;
             const value = data[field.key] || "";
 
-            detailsHtml += `<div class="info-row">
-                    <label class="info-label">${displayKey}</label>`;
+            detailsHtml += `<div class="info-row">`;
 
             if (field.type === "select") {
-                detailsHtml += `<select class="sidebar-input" data-key="${field.key}">`;
+                detailsHtml += `<select class="sidebar-input" data-key="${field.key}">
+                                <option value="" disabled ${value === "" ? "selected" : ""}>${displayKey}</option>`;
                 field.options.forEach(opt => {
                     const selected = value === opt.value ? 'selected' : '';
                     detailsHtml += `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
                 });
                 detailsHtml += `</select>`;
             } else {
-                detailsHtml += `<input type="text" class="sidebar-input" data-key="${field.key}" value="${value}">`;
+                detailsHtml += `<input type="text" class="sidebar-input" data-key="${field.key}" value="${value}" placeholder="${displayKey}">`;
             }
 
             detailsHtml += `</div>`;
@@ -734,15 +742,15 @@ Familienbaum.prototype.create_editing_form = function (node_of_dag, node_of_dag_
         }
 
         detailsHtml += `
-            <div class="button-row" style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap;">
-                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+            <div class="button-row" style="margin-top:15px; display:flex; flex-direction:column; gap:10px;">
+                <div style="display:flex; gap:8px; width:100%;">
                     ${actionButton}
                     ${deleteButton}
                 </div>
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:nowrap;">
-                    <span id="save-status"></span>
-                    <button id="btn-save-changes" class="action-btn btn-success">💾 Kaydet</button>
+                <div style="display:flex; gap:8px; width:100%; align-items:center;">
+                    <button id="btn-save-changes" class="action-btn btn-success" style="flex:1;">💾 Kaydet</button>
                 </div>
+                <div id="save-status" style="text-align:center; font-size:0.85rem; min-height:1.2em;"></div>
             </div>
         </div>`;
 
