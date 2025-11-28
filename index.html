@@ -7,6 +7,10 @@
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="stylesheet" href="css/familienbaum.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700&display=swap"
+        rel="stylesheet">
     <style>
         /* Modern Modal Styles */
         #crop-modal {
@@ -18,36 +22,37 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0, 0, 0, 0.85);
+            background-color: rgba(0, 0, 0, 0.6);
             align-items: center;
             justify-content: center;
-            backdrop-filter: blur(4px);
+            backdrop-filter: blur(8px);
         }
 
         #crop-modal-content {
-            background-color: white;
+            background: rgba(255, 255, 255, 0.95);
             margin: auto;
             padding: 32px;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             width: 90%;
             max-width: 700px;
             max-height: 90%;
             display: flex;
             flex-direction: column;
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
 
         #crop-image-container {
             max-height: 60vh;
             overflow: hidden;
             margin-bottom: 24px;
-            border-radius: 8px;
-            background: #f8f9fa;
+            border-radius: 16px;
+            background: #f1f5f9;
         }
 
         #crop-image-container img {
             max-width: 100%;
-            border-radius: 8px;
+            border-radius: 16px;
         }
 
         .crop-actions {
@@ -59,17 +64,17 @@
         .crop-actions button {
             padding: 12px 24px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: 'Inter', sans-serif;
         }
 
         #btn-cancel-crop {
             background: #e2e8f0;
-            color: #2d3748;
+            color: #475569;
         }
 
         #btn-cancel-crop:hover {
@@ -77,39 +82,42 @@
         }
 
         #btn-confirm-crop {
-            background: #52a788;
+            background: #10b981;
             color: white;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
         }
 
         #btn-confirm-crop:hover {
-            background: #45916f;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            background: #059669;
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
         }
     </style>
 </head>
 
 <body>
     <!-- Global Patrilineal Toggle Button -->
-    <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+    <div style="position: fixed; top: 24px; right: 24px; z-index: 1000;">
         <button id="patrilineal-global-toggle" style="
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             color: white;
-            border: none;
-            border-radius: 25px;
-            padding: 12px 24px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 12px 20px;
             font-size: 0.95rem;
             font-weight: 600;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-            transition: all 0.3s ease;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-family: 'Outfit', sans-serif;
             display: flex;
             align-items: center;
-            gap: 8px;
-        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.5)'"
-            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(102, 126, 234, 0.4)'">
-            <span id="toggle-icon">👨‍👦</span>
+            gap: 10px;
+            letter-spacing: 0.3px;
+        " onmouseover="this.style.transform='translateY(-2px)'; this.style.background='rgba(255, 255, 255, 0.2)'; this.style.boxShadow='0 12px 40px 0 rgba(31, 38, 135, 0.25)'"
+            onmouseout="this.style.transform='translateY(0)'; this.style.background='rgba(255, 255, 255, 0.1)'; this.style.boxShadow='0 8px 32px 0 rgba(31, 38, 135, 0.15)'">
+            <span id="toggle-icon" style="font-size: 1.2em;">👨‍👦</span>
             <span id="toggle-text">Sadece Erkek Soyu</span>
         </button>
     </div>
