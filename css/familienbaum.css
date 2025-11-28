@@ -46,14 +46,14 @@ body {
 }
 
 .highlighted {
-    fill: var(--accent);
+    fill: var(--primary-light);
     stroke: white;
     stroke-width: 3px;
     filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
 }
 
 .non-highlighted {
-    fill: var(--primary-light);
+    fill: var(--accent);
     stroke: var(--primary);
     stroke-width: 2px;
     opacity: 0.6;
@@ -206,6 +206,16 @@ body.show-plus .plus-label { visibility: visible; pointer-events: auto; }
 
 .sidebar-input:hover {
     border-color: var(--primary-light);
+}
+
+/* Select dropdowns */
+select.sidebar-input {
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23718096' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 36px;
 }
 
 /* Action Buttons */

@@ -18,7 +18,8 @@ const COLUMN_MAPPING = {
     "death_date": 8,     // H: Ölüm Tarihi
     "image_path": 9,     // I: Resim Yolu
     "marriage": 10,      // J: Evlilik Tarihi
-    "note": 11           // K: Not
+    "note": 11,          // K: Not
+    "gender": 12         // L: Cinsiyet (M/F/U)
 };
 
 // Function to convert file to Base64
@@ -39,7 +40,7 @@ async function saveData(node, updates) {
     try {
         const memberId = parseInt(node.data.split("_")[1]);
         // sheetRow is 1-based, matches row in Google Sheet
-        const sheetRow = memberId + 2; 
+        const sheetRow = memberId + 2;
 
         const payload = {
             row: sheetRow,
@@ -63,17 +64,17 @@ async function saveData(node, updates) {
                 node.added_data.input[propName] = val;
             }
         }
-        
+
         // Reconstruct Full Name for display if first_name or last_name changed
         if (updates[COLUMN_MAPPING['first_name']] !== undefined || updates[COLUMN_MAPPING['last_name']] !== undefined) {
             const f = node.added_data.input['first_name'] || "";
             const l = node.added_data.input['last_name'] || "";
             node.added_data.input['name'] = (f + " " + l).trim();
-            
+
             // Update Sidebar Title
             document.getElementById('sidebar-title').innerText = node.added_data.input['name'];
         }
-        
+
         // Update tree node image if photo was deleted
         if (updates[COLUMN_MAPPING['image_path']] === "") {
             if (typeof d3 !== 'undefined') {
@@ -86,10 +87,10 @@ async function saveData(node, updates) {
 
         // Refresh UI elements (Name in tree, etc.)
         if (typeof d3 !== 'undefined') {
-             d3.selectAll("g.node")
+            d3.selectAll("g.node")
                 .filter(d => d.data === node.data)
                 .select("text") // Update label if name changed
-                .each(function(d) { set_multiline(d3.select(this.parentNode), d, true); });
+                .each(function (d) { set_multiline(d3.select(this.parentNode), d, true); });
         }
 
         statusEl.innerText = "Kaydedildi! (Kalıcı olması 5-10 dk sürebilir)";
@@ -106,14 +107,14 @@ async function saveData(node, updates) {
 async function addSpouse(node) {
     const statusEl = document.getElementById('save-status');
     const memberId = parseInt(node.data.split("_")[1]);
-    
+
     // Insertion Logic for Spouse
     // Insert AFTER the Head and any EXISTING spouses.
     // STOP before any children.
-    
+
     let insertAfterRow = memberId; // Default: After self
     let checkId = memberId + 1;
-    
+
     if (window.familyData && window.familyData.members) {
         while (true) {
             const nextMem = window.familyData.members["mem_" + checkId];
@@ -125,16 +126,16 @@ async function addSpouse(node) {
                 checkId++;
                 continue;
             }
-            
+
             // If next is Child or Sibling, STOP.
             // We want to insert BEFORE the children.
             break;
         }
     }
-    
+
     // Convert to Sheet Row (1-based + Header)
     const targetRow = insertAfterRow + 2;
-    
+
     const spouseName = prompt("Yeni eşin adı nedir?");
     if (!spouseName) return;
 
@@ -170,22 +171,41 @@ async function addSpouse(node) {
 // Helper to render form fields (reused for Edit and Add)
 function renderFormFields(container, data) {
     const fieldsToEdit = [
-        { key: "first_name", label: "Ad" },
-        { key: "last_name", label: "Soyad" },
-        { key: "birth_date", label: "Doğum Tarihi" },
-        { key: "birthplace", label: "Doğum Yeri" },
-        { key: "death_date", label: "Ölüm Tarihi" },
-        { key: "marriage", label: "Evlilik Tarihi" },
-        { key: "note", label: "Not" }
+        { key: "first_name", label: "Ad", type: "text" },
+        { key: "last_name", label: "Soyad", type: "text" },
+        {
+            key: "gender", label: "Cinsiyet", type: "select", options: [
+                { value: "E", label: "Erkek" },
+                { value: "K", label: "Kadın" },
+                { value: "U", label: "Belirsiz" }
+            ]
+        },
+        { key: "birth_date", label: "Doğum Tarihi", type: "text" },
+        { key: "birthplace", label: "Doğum Yeri", type: "text" },
+        { key: "death_date", label: "Ölüm Tarihi", type: "text" },
+        { key: "marriage", label: "Evlilik Tarihi", type: "text" },
+        { key: "note", label: "Not", type: "text" }
     ];
 
     let html = `<div class="edit-form">`;
     fieldsToEdit.forEach(field => {
-         const value = data[field.key] || "";
-         html += `
-            <div class="info-row">
-                <label class="info-label" style="display:block; font-size:0.8em; color:#666;">${field.label}</label>
-                <input type="text" class="sidebar-input" data-key="${field.key}" value="${value}" style="width:100%; padding:5px; margin-bottom:8px; border:1px solid #ccc; border-radius:4px;">
+        const value = data[field.key] || "";
+
+        html += `<div class="info-row">
+                <label class="info-label">${field.label}</label>`;
+
+        if (field.type === "select") {
+            html += `<select class="sidebar-input" data-key="${field.key}">`;
+            field.options.forEach(opt => {
+                const selected = value === opt.value ? 'selected' : '';
+                html += `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
+            });
+            html += `</select>`;
+        } else {
+            html += `<input type="text" class="sidebar-input" data-key="${field.key}" value="${value}">`;
+        }
+
+        html += `
             </div>
          `;
     });
@@ -228,20 +248,20 @@ function showAddChildForm(node) {
 
     // Set Title
     titleEl.innerText = "Yeni Çocuk Ekle";
-    
+
     // Pre-fill Data
     const parentSurname = node.added_data.input.last_name || "";
     const emptyData = { last_name: parentSurname };
-    
+
     // Render Form
     renderFormFields(detailsEl, emptyData);
-    
+
     // Add Buttons
     const btnContainer = document.createElement("div");
     btnContainer.style.marginTop = "15px";
     btnContainer.style.display = "flex";
     btnContainer.style.justifyContent = "space-between";
-    
+
     const btnCancel = document.createElement("button");
     btnCancel.className = "action-btn btn-secondary";
     btnCancel.innerText = "İptal";
@@ -252,29 +272,29 @@ function showAddChildForm(node) {
         // Better: Just re-click the node? 
         // Simplest: reload the sidebar for the current node.
         if (typeof currentEditedNode !== 'undefined') {
-             // We need to call create_editing_form. But it's a method on prototype.
-             // We can assume the global instance is accessible or just re-trigger click logic?
-             // Let's just manually call it if we can access the instance.
-             // If not, we can just hide sidebar.
-             // Let's try to find the D3 node click handler? No.
-             
-             // Re-rendering the edit form logic manually:
-             // We need the 'familienbaum' instance. It was local in initApp.
-             // Let's make it global in next step or assume we can just close.
-             // For now, Close Sidebar is safe.
-             document.getElementById('family-sidebar').classList.remove('active');
+            // We need to call create_editing_form. But it's a method on prototype.
+            // We can assume the global instance is accessible or just re-trigger click logic?
+            // Let's just manually call it if we can access the instance.
+            // If not, we can just hide sidebar.
+            // Let's try to find the D3 node click handler? No.
+
+            // Re-rendering the edit form logic manually:
+            // We need the 'familienbaum' instance. It was local in initApp.
+            // Let's make it global in next step or assume we can just close.
+            // For now, Close Sidebar is safe.
+            document.getElementById('family-sidebar').classList.remove('active');
         }
     };
-    
+
     const btnConfirm = document.createElement("button");
     btnConfirm.className = "action-btn btn-success";
     btnConfirm.innerText = "✅ Çocuğu Ekle";
     btnConfirm.onclick = () => submitNewChild(node);
-    
+
     btnContainer.appendChild(btnCancel);
     btnContainer.appendChild(btnConfirm);
     detailsEl.appendChild(btnContainer);
-    
+
     // Add Status Area
     const status = document.createElement("div");
     status.id = "add-status";
@@ -287,12 +307,12 @@ function showAddChildForm(node) {
 async function submitNewChild(node) {
     const statusEl = document.getElementById('add-status');
     const memberId = parseInt(node.data.split("_")[1]);
-    
+
     // 1. Collect Data
     const inputs = document.querySelectorAll('#sidebar-details input.sidebar-input');
     const updates = {};
     let hasName = false;
-    
+
     inputs.forEach(inp => {
         const key = inp.getAttribute('data-key');
         const val = inp.value;
@@ -302,7 +322,7 @@ async function submitNewChild(node) {
             if (colIndex) updates[colIndex] = val;
         }
     });
-    
+
     if (!hasName) {
         alert("Lütfen en azından bir isim (Ad) girin.");
         return;
@@ -311,7 +331,7 @@ async function submitNewChild(node) {
     // 2. Calculate Anchor & Parents (Same logic as before)
     let anchorId = memberId;
     const isClickedNodeSpouse = node.added_data.input.is_spouse;
-    
+
     if (isClickedNodeSpouse && window.familyData && window.familyData.members) {
         let tempId = memberId;
         while (tempId >= 0) {
@@ -324,25 +344,25 @@ async function submitNewChild(node) {
             tempId--;
         }
     }
-    
+
     const anchorNode = window.familyData.members["mem_" + anchorId];
-    const anchorGen = anchorNode.gen; 
-    
+    const anchorGen = anchorNode.gen;
+
     // 3. Calculate Insertion Point
     let lastFamilyIndex = anchorId;
     let checkId = anchorId + 1;
-    
+
     if (window.familyData && window.familyData.members) {
         while (true) {
             const nextMem = window.familyData.members["mem_" + checkId];
-            if (!nextMem) break; 
+            if (!nextMem) break;
 
             if (nextMem.is_spouse) {
                 lastFamilyIndex = checkId;
                 checkId++;
                 continue;
             }
-            
+
             if (nextMem.gen > anchorGen) {
                 lastFamilyIndex = checkId;
                 checkId++;
@@ -351,16 +371,34 @@ async function submitNewChild(node) {
             break;
         }
     }
-    
-    const insertAfterRow = lastFamilyIndex + 2; 
+
+    const insertAfterRow = lastFamilyIndex + 2;
     const childGen = anchorGen + 1;
-    
+
     // 4. Add System Fields to Updates
     updates[COLUMN_MAPPING['gen_col']] = childGen;
-    updates[COLUMN_MAPPING['father']] = anchorNode.first_name; // Father Name (First Name Only)
-    
+
+    // Determine mother and father based on gender
+    const anchorGender = anchorNode.gender || 'E';  // Default to E (Erkek) if not specified
+    const clickedGender = node.added_data.input.gender || (isClickedNodeSpouse ? 'K' : 'E');
+
+    // Assign father and mother based on actual genders
     if (isClickedNodeSpouse) {
-        updates[COLUMN_MAPPING['mother']] = node.added_data.input.first_name; // Mother Name (First Name Only)
+        // Both anchor and clicked node are parents
+        if (anchorGender === 'E') {
+            updates[COLUMN_MAPPING['father']] = anchorNode.first_name;
+            updates[COLUMN_MAPPING['mother']] = node.added_data.input.first_name;
+        } else {
+            updates[COLUMN_MAPPING['father']] = node.added_data.input.first_name;
+            updates[COLUMN_MAPPING['mother']] = anchorNode.first_name;
+        }
+    } else {
+        // Only anchor node, clicked node is non-spouse
+        if (anchorGender === 'E') {
+            updates[COLUMN_MAPPING['father']] = anchorNode.first_name;
+        } else {
+            updates[COLUMN_MAPPING['mother']] = anchorNode.first_name;
+        }
     }
 
     // 5. Send Request
@@ -514,7 +552,7 @@ async function uploadPhoto(file, node) {
             method: 'POST',
             mode: 'no-cors', // Use no-cors to avoid CORS errors, response will be opaque
             headers: {
-                'Content-Type': 'text/plain;charset=utf-8', 
+                'Content-Type': 'text/plain;charset=utf-8',
             },
             body: JSON.stringify(payload)
         });
@@ -536,13 +574,13 @@ async function uploadPhoto(file, node) {
                 .select("image")
                 .attr("href", temporaryImageUrl);
         }
-        
+
         uploadStatus.innerText = "Yüklendi! (Kalıcı olması 5-10 dk sürebilir)";
         uploadStatus.style.color = "green";
-        
+
         // Optional: We can set a timeout to clear the status
         setTimeout(() => {
-             uploadStatus.innerText = "";
+            uploadStatus.innerText = "";
         }, 5000);
 
     } catch (error) {
@@ -556,26 +594,26 @@ async function uploadPhoto(file, node) {
 }
 
 
-Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_all) {
+Familienbaum.prototype.create_editing_form = function (node_of_dag, node_of_dag_all) {
     currentEditedNode = node_of_dag; // Store the currently edited node
 
-	// 1. Update Tree View (Expand/Highlight)
-	for (let node of this.get_relationship_in_dag_all(node_of_dag_all))
-		node.added_data.is_visible = true;
-	    this.draw(true, node_of_dag_all.data);
-	    
-	    // 2. Get Data
-	    let name = get_name(node_of_dag) || "İsimsiz"; // This is the combined display name
-	    const isSpouse = node_of_dag.added_data.input.is_spouse;
-	    
-	    // 3. Populate Sidebar
-        const sidebar = document.getElementById('family-sidebar');
-        const titleEl = document.getElementById('sidebar-title');
-        const detailsEl = document.getElementById('sidebar-details');
-        const imageEl = document.getElementById('sidebar-image');
+    // 1. Update Tree View (Expand/Highlight)
+    for (let node of this.get_relationship_in_dag_all(node_of_dag_all))
+        node.added_data.is_visible = true;
+    this.draw(true, node_of_dag_all.data);
+
+    // 2. Get Data
+    let name = get_name(node_of_dag) || "İsimsiz"; // This is the combined display name
+    const isSpouse = node_of_dag.added_data.input.is_spouse;
+
+    // 3. Populate Sidebar
+    const sidebar = document.getElementById('family-sidebar');
+    const titleEl = document.getElementById('sidebar-title');
+    const detailsEl = document.getElementById('sidebar-details');
+    const imageEl = document.getElementById('sidebar-image');
     const btnParents = document.getElementById('btn-parents');
     const btnChildren = document.getElementById('btn-children');
-    
+
     // Set Title (Static, just the combined name)
     titleEl.innerText = name;
 
@@ -616,49 +654,68 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
     imageEl.onclick = () => {
         document.getElementById('image-upload-input').click();
     };
-    
+
     // Set Details Form
     const keyMap = {
         "first_name": "Ad",
         "last_name": "Soyad",
+        "gender": "Cinsiyet",
         "birth_date": "Doğum Tarihi",
         "death_date": "Ölüm Tarihi",
         "birthplace": "Doğum Yeri",
         "occupation": "Meslek",
         "note": "Not",
-        "marriage": "Evlilik Tarihi",
-        // "second_names": "İkinci İsimler",
-        // "anne": "Anne Adı",
-        // "baba": "Baba Adı"
+        "marriage": "Evlilik Tarihi"
     };
 
     let detailsHtml = "";
-    
+
     // Define fields to edit from the new COLUMN_MAPPING
     // Use the actual property names from the node.added_data.input object
     const fieldsToEdit = [
-        "first_name", "last_name", "birth_date", "birthplace",
-        "death_date", "marriage", "note"
+        { key: "first_name", type: "text" },
+        { key: "last_name", type: "text" },
+        {
+            key: "gender", type: "select", options: [
+                { value: "E", label: "Erkek" },
+                { value: "K", label: "Kadın" },
+                { value: "U", label: "Belirsiz" }
+            ]
+        },
+        { key: "birth_date", type: "text" },
+        { key: "birthplace", type: "text" },
+        { key: "death_date", type: "text" },
+        { key: "marriage", type: "text" },
+        { key: "note", type: "text" }
     ];
 
     if (is_member(node_of_dag)) {
         const data = node_of_dag.added_data.input;
-        
+
         // Build Form Inputs
         detailsHtml += `<div class="edit-form">`;
-        
-        fieldsToEdit.forEach(key => {
-             const displayKey = keyMap[key] || key;
-             const value = data[key] || "";
 
-             detailsHtml += `
-                <div class="info-row">
-                    <label class="info-label">${displayKey}</label>
-                    <input type="text" class="sidebar-input" data-key="${key}" value="${value}">
-                </div>
-             `;
+        fieldsToEdit.forEach(field => {
+            const displayKey = keyMap[field.key] || field.key;
+            const value = data[field.key] || "";
+
+            detailsHtml += `<div class="info-row">
+                    <label class="info-label">${displayKey}</label>`;
+
+            if (field.type === "select") {
+                detailsHtml += `<select class="sidebar-input" data-key="${field.key}">`;
+                field.options.forEach(opt => {
+                    const selected = value === opt.value ? 'selected' : '';
+                    detailsHtml += `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
+                });
+                detailsHtml += `</select>`;
+            } else {
+                detailsHtml += `<input type="text" class="sidebar-input" data-key="${field.key}" value="${value}">`;
+            }
+
+            detailsHtml += `</div>`;
         });
-        
+
         // Check if this is a leaf node (no children)
         const isLeafNode = Array.from(node_of_dag_all.children()).length === 0;
 
@@ -693,7 +750,7 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
         detailsHtml = "<em>Aile Bağlantısı (Düzenlenemez)</em>";
     }
     detailsEl.innerHTML = detailsHtml;
-    
+
     // Bind Buttons
     const btnSave = document.getElementById('btn-save-changes');
     const btnAddChild = document.getElementById('btn-add-child');
@@ -704,7 +761,8 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
         btnSave.onclick = () => {
             const updates = {};
 
-            const inputs = detailsEl.querySelectorAll('input.sidebar-input');
+            // Get both input and select elements
+            const inputs = detailsEl.querySelectorAll('input.sidebar-input, select.sidebar-input');
             inputs.forEach(inp => {
                 const key = inp.getAttribute('data-key'); // e.g., "first_name"
                 const val = inp.value;
@@ -750,26 +808,26 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
             deleteChild(node_of_dag);
         };
     }
-    
+
     // Bind Actions to Buttons
     btnParents.onclick = () => {
         let parents = Array.from(this.dag_all.parents(node_of_dag_all));
-		while (parents.length > 0) {
-			let parent = parents.pop();
-			parent.added_data.is_visible = true;
-			parents = parents.concat(this.dag_all.parents(parent));
-		}
-		this.draw(false);
+        while (parents.length > 0) {
+            let parent = parents.pop();
+            parent.added_data.is_visible = true;
+            parents = parents.concat(this.dag_all.parents(parent));
+        }
+        this.draw(false);
     };
-    
+
     btnChildren.onclick = () => {
         let children = Array.from(node_of_dag_all.children());
-		while (children.length > 0) {
-			let child = children.pop();
-			child.added_data.is_visible = true;
-			children = children.concat(Array.from(child.children()));
-		}
-		this.draw(false);
+        while (children.length > 0) {
+            let child = children.pop();
+            child.added_data.is_visible = true;
+            children = children.concat(Array.from(child.children()));
+        }
+        this.draw(false);
     };
 
     // Update "Open Google Sheet" button to link to specific row
@@ -779,7 +837,7 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
             const idx = parseInt(node_of_dag.data.split("_")[1]);
             const row = idx + 2;
             const sheetEditUrl = `https://docs.google.com/spreadsheets/d/12kZlANYbq0w3k8TpDxssVSlWVfbs-qZQ9bAjERci0SM/edit#gid=790197592&range=A${row}`;
-            
+
             btnSheet.onclick = () => window.open(sheetEditUrl, "_blank");
             btnSheet.innerText = `✏️ Bu Satırı Düzenle (Satır ${row})`;
         } else {
@@ -793,7 +851,7 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
     sidebar.classList.add('active');
 }
 
-Familienbaum.prototype.create_info_form = function() {
+Familienbaum.prototype.create_info_form = function () {
     // For the 'i' button, we can just open the sidebar with generic info or an alert
     // or open the sheet directly.
     // Let's open the sheet directly for simplicity as per user preference for robustness.
@@ -824,13 +882,13 @@ document.addEventListener('DOMContentLoaded', () => {
         fileInput.addEventListener('change', (event) => {
             if (event.target.files.length > 0) {
                 const file = event.target.files[0];
-                
+
                 // Read file to display in cropper
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     cropImage.src = e.target.result;
                     cropModal.style.display = "flex"; // Show modal
-                    
+
                     // Init Cropper
                     if (cropper) cropper.destroy();
                     cropper = new Cropper(cropImage, {
@@ -843,11 +901,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    
+
     if (btnCancelCrop) {
         btnCancelCrop.addEventListener('click', closeCropModal);
     }
-    
+
     if (btnConfirmCrop) {
         btnConfirmCrop.addEventListener('click', () => {
             if (!cropper) return;

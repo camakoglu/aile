@@ -41,25 +41,26 @@ const COL_BIRTH_DATE = 5;   // F: Birth Date (Doğum Tarihi)
 const COL_BIRTHPLACE = 6;   // G: Birth Place (Doğum Yeri)
 const COL_DEATH_DATE = 7;   // H: Death Date (Ölüm Tarihi)
 const COL_IMAGE_PATH = 8;   // I: Image Path (Resim Yolu)
-const COL_MARRIAGE = 9;     // J: Marriage Date (Evlilik Tarihi)
-const COL_NOTE = 10;        // K: Note (Not)
+const COL_MARRIAGE = 9;     // J: Marriage Date (Evlilik Tarihi) - Currently empty in CSV
+const COL_GENDER = 10;      // K: Gender (Cinsiyet) - E/K/U (Erkek/Kadın/Unknown)
+const COL_NOTE = 11;        // L: Note (Not)
 
 
 function processSheetData(rows) {
     console.log("Processing " + rows.length + " data rows in Hierarchical Mode with column numbers.");
-    
+
     const members = {};
     const links = [];
     const unions = {}; // Key: "p1_p2", Value: unionID
 
     // State for hierarchical parsing
     let lastRegularMember = null; // The last person processed who has a numeric gen
-    let lastRegularMemberGen = 0; 
-    
+    let lastRegularMemberGen = 0;
+
     // Maps generation level to the *active* parent ID at that level
     // e.g., genMap[1] = "GrandpaID"
-    const genMap = {}; 
-    
+    const genMap = {};
+
     // Maps generation level to the *active* spouse ID at that level (if any)
     // This is used to link children to the correct mother (Fallback)
     const spouseMap = {};
@@ -81,15 +82,15 @@ function processSheetData(rows) {
     }
 
     rows.forEach((row, index) => {
-        if (row.length === 0 || clean(row[COL_GEN]) === "") return; 
+        if (row.length === 0 || clean(row[COL_GEN]) === "") return;
 
         const rawGen = row[COL_GEN];
         const genType = parseGen(rawGen);
 
-        if (genType === null && rawGen === "") return; 
+        if (genType === null && rawGen === "") return;
 
-        const id = "mem_" + index; 
-        
+        const id = "mem_" + index;
+
         const firstName = clean(row[COL_NAME]);
         const lastName = clean(row[COL_SURNAME]);
         let fullName = firstName;
@@ -98,23 +99,25 @@ function processSheetData(rows) {
 
         const imgRaw = clean(row[COL_IMAGE_PATH]);
         const img = convertDriveLink(imgRaw.replace(/\\/g, "/"));
-        
+
         // Read Parent Names for linking
-        const motherNameData = clean(row[4]); // Col E: Mother Name (hardcoded index 4 based on user info)
+        const fatherNameData = clean(row[3]); // Col D: Father Name
+        const motherNameData = clean(row[4]); // Col E: Mother Name
 
         members[id] = {
             "id": id,
-            "name": fullName, 
-            "first_name": firstName, 
-            "last_name": lastName,   
+            "name": fullName,
+            "first_name": firstName,
+            "last_name": lastName,
             "birth_date": clean(row[COL_BIRTH_DATE]),
             "birthplace": clean(row[COL_BIRTHPLACE]),
             "death_date": clean(row[COL_DEATH_DATE]),
             "image_path": img,
             "marriage": clean(row[COL_MARRIAGE]),
             "note": clean(row[COL_NOTE]),
-            "gen": null, 
-            "is_spouse": (genType === "E") 
+            "gender": clean(row[COL_GENDER]) || "U", // M/F/U (Male/Female/Unknown)
+            "gen": null,
+            "is_spouse": (genType === "E")
         };
 
         // LOGIC for linking and generation
@@ -124,54 +127,59 @@ function processSheetData(rows) {
                 console.warn("Row " + (index + 2) + ": Spouse 'E' found but no partner exists above.");
                 return;
             }
-            
+
             const partnerID = lastRegularMember;
             const partnerGen = lastRegularMemberGen;
-            
-            members[id].gen = partnerGen; 
-            
+
+            members[id].gen = partnerGen;
+
             spouseMap[partnerGen] = id; // Set as last seen spouse
-            
+
             // Add to Name Map
             if (!spouseNameMap[partnerGen]) spouseNameMap[partnerGen] = {};
             spouseNameMap[partnerGen][firstName] = id; // Map "Sakine" -> ID
-            
+
             getUnion(partnerID, id);
-            
+
         } else {
             // This is a Child (Numeric Gen)
             const gen = genType;
-            members[id].gen = gen; 
-            
+            members[id].gen = gen;
+
             lastRegularMember = id;
             lastRegularMemberGen = gen;
             genMap[gen] = id;
             spouseMap[gen] = null; // Reset last spouse
             spouseNameMap[gen] = {}; // Reset spouse name map for this new person
-            
+
             // Find Parent
             if (gen > 1) {
-                const fatherID = genMap[gen - 1];
-                let motherID = null;
-                
-                // Try to find mother by name
-                if (motherNameData && spouseNameMap[gen - 1] && spouseNameMap[gen - 1][motherNameData]) {
-                    motherID = spouseNameMap[gen - 1][motherNameData];
-                } else {
-                    // Fallback to last seen spouse
-                    motherID = spouseMap[gen - 1];
+                const parentID = genMap[gen - 1];
+                let spouseID = null;
+
+                // Try to match father name to a spouse
+                if (fatherNameData && spouseNameMap[gen - 1] && spouseNameMap[gen - 1][fatherNameData]) {
+                    spouseID = spouseNameMap[gen - 1][fatherNameData];
                 }
-                
-                if (fatherID) {
-                    const uID = getUnion(fatherID, motherID);
+                // Try to match mother name to a spouse
+                else if (motherNameData && spouseNameMap[gen - 1] && spouseNameMap[gen - 1][motherNameData]) {
+                    spouseID = spouseNameMap[gen - 1][motherNameData];
+                }
+                // Fallback to last seen spouse
+                else {
+                    spouseID = spouseMap[gen - 1];
+                }
+
+                if (parentID) {
+                    const uID = getUnion(parentID, spouseID);
                     links.push([uID, id]);
                 }
             } else {
-                console.warn("Row " + (index + 2) + ": Gen " + gen + " found but no parent at Gen " + (gen-1));
+                console.warn("Row " + (index + 2) + ": Gen " + gen + " found but no parent at Gen " + (gen - 1));
             }
         }
     });
-    
+
     // Determine Start Node (First Gen 1)
     const startID = Object.keys(members)[0];
 
@@ -186,15 +194,15 @@ async function loadFromGoogleSheet(url) {
     try {
         // Use d3.text to get raw CSV content
         const rawText = await d3.text(url);
-        
+
         // Parse the entire CSV structure first
         const allRows = d3.csvParseRows(rawText);
-        
+
         if (!allRows || allRows.length <= 1) throw new Error("No data rows found.");
-        
+
         // Skip the header row (index 0)
         const dataRows = allRows.slice(1);
-        
+
         const processed = processSheetData(dataRows);
         console.log("Graph built:", processed);
         return processed;
