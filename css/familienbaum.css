@@ -1,19 +1,83 @@
+/* Modern Color Scheme Variables */
+:root {
+    --primary-dark: #1e3a5f;      /* Deep navy blue */
+    --primary: #2c5f8d;            /* Ocean blue */
+    --primary-light: #4a7ba7;      /* Light blue */
+    --accent: #d4a574;             /* Warm gold */
+    --accent-dark: #b8935f;        /* Dark gold */
+    --success: #52a788;            /* Sage green */
+    --danger: #c84b4b;             /* Muted red */
+    --background: #f8f9fa;         /* Off-white */
+    --surface: #ffffff;            /* Pure white */
+    --text-primary: #2d3748;       /* Dark gray */
+    --text-secondary: #718096;     /* Medium gray */
+    --border: #e2e8f0;             /* Light gray */
+    --shadow: rgba(0, 0, 0, 0.1);
+}
+
 body {
 	width: 100%;
 	height: 100%;
 	overflow: hidden;
-	background: #953240;
+	background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
     margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 16px;
 }
 
-/* ... (Keep existing graph styles) ... */
-.member { fill: #3e79C9; stroke-width: 2px; z-index: 8; }
-.family { fill: #953240; stroke: #3e79C9; stroke-width: 2px; z-index: 7; }
-.highlighted { fill: #3e79C9; stroke: white; stroke-width: 3px; }
-.non-highlighted { fill: #3e79C9; stroke: #3e79C9; stroke-width: 3px; }
-.node-label { font: 12px sans-serif; fill: white; pointer-events: none; }
-.link { fill: none; stroke: #3e79C9; stroke-width: 2px; z-index: 6; }
-image { filter: saturate(75%) }
+/* Tree Graph Styles */
+.member {
+    fill: var(--accent);
+    stroke: var(--primary-dark);
+    stroke-width: 2.5px;
+    z-index: 8;
+    transition: all 0.3s ease;
+}
+.member:hover {
+    fill: var(--accent-dark);
+    filter: brightness(1.1);
+}
+
+.family {
+    fill: var(--primary);
+    stroke: var(--accent);
+    stroke-width: 2px;
+    z-index: 7;
+}
+
+.highlighted {
+    fill: var(--accent);
+    stroke: white;
+    stroke-width: 3px;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+}
+
+.non-highlighted {
+    fill: var(--primary-light);
+    stroke: var(--primary);
+    stroke-width: 2px;
+    opacity: 0.6;
+}
+
+.node-label {
+    font: 14px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    fill: white;
+    pointer-events: none;
+    font-weight: 500;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.link {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2.5px;
+    z-index: 6;
+    opacity: 0.8;
+}
+
+image {
+    filter: saturate(85%) brightness(1.05);
+}
 
 /* Shift Key Logic */
 .plus-label {
@@ -26,85 +90,247 @@ image { filter: saturate(75%) }
 }
 body.show-plus .plus-label { visibility: visible; pointer-events: auto; }
 
-/* --- NEW SIDEBAR STYLES --- */
+/* --- MODERN SIDEBAR STYLES --- */
 #family-sidebar {
     position: fixed;
     top: 0;
-    right: -350px; /* Hidden by default (off-screen) */
-    width: 320px;
+    right: -420px;
+    width: 400px;
     height: 100vh;
-    background: #ffffff;
-    box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+    background: var(--surface);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.15);
     z-index: 9999;
-    transition: right 0.3s ease-in-out;
+    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    font-family: sans-serif;
+}
+
+#family-sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+#family-sidebar::-webkit-scrollbar-track {
+    background: var(--background);
+}
+
+#family-sidebar::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+#family-sidebar::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
 }
 
 #family-sidebar.active {
-    right: 0; /* Slide in */
+    right: 0;
 }
 
 .sidebar-header {
-    padding: 15px;
-    background: #f4f4f4;
-    border-bottom: 1px solid #ddd;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+    border-bottom: 3px solid var(--accent);
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .sidebar-header h2 {
     margin: 0;
-    font-size: 1.2rem;
-    color: #953240;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: white;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .close-btn {
-    background: none;
+    background: rgba(255, 255, 255, 0.2);
     border: none;
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     cursor: pointer;
-    color: #666;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
 }
 
 .sidebar-content {
-    padding: 20px;
+    padding: 24px;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 20px;
+    background: var(--background);
 }
 
 .sidebar-section {
-    border-bottom: 1px solid #eee;
-    padding-bottom: 15px;
+    background: var(--surface);
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 2px 4px var(--shadow);
 }
 
+.sidebar-section:last-child {
+    margin-bottom: 0;
+}
+
+/* Input Fields */
+.sidebar-input {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background: var(--surface);
+    color: var(--text-primary);
+    font-family: inherit;
+}
+
+.sidebar-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(44, 95, 141, 0.1);
+}
+
+.sidebar-input:hover {
+    border-color: var(--primary-light);
+}
+
+/* Action Buttons */
 .action-btn {
     display: block;
     width: 100%;
-    padding: 10px;
+    padding: 12px 16px;
     margin-bottom: 10px;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
-    font-size: 0.9rem;
-    transition: background 0.2s;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px var(--shadow);
+    font-family: inherit;
+    white-space: nowrap;
 }
 
-.btn-primary { background: #3e79C9; color: white; }
-.btn-primary:hover { background: #2a5a96; }
+/* Button row container */
+.button-row {
+    margin-top: 16px;
+}
 
-.btn-success { background: #4CAF50; color: white; }
-.btn-success:hover { background: #3d8b40; }
+/* Inline action buttons (used in button rows) */
+.button-row .action-btn {
+    display: inline-flex;
+    width: auto;
+    align-items: center;
+    justify-content: center;
+    min-width: fit-content;
+    margin-bottom: 0;
+    padding: 10px 14px;
+}
 
-.btn-secondary { background: #eee; color: #333; }
-.btn-secondary:hover { background: #ddd; }
+.action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px var(--shadow);
+}
 
+.action-btn:active {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+}
+.btn-primary:hover {
+    background: var(--primary-light);
+}
+
+.btn-success {
+    background: var(--success);
+    color: white;
+}
+.btn-success:hover {
+    background: #45916f;
+}
+
+.btn-secondary {
+    background: var(--accent);
+    color: white;
+}
+.btn-secondary:hover {
+    background: var(--accent-dark);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: white;
+}
+.btn-danger:hover {
+    background: #b03a3a;
+}
+
+/* Info Rows */
 .info-row {
-    margin-bottom: 8px;
-    font-size: 0.9rem;
+    margin-bottom: 12px;
 }
-.info-label { font-weight: bold; color: #555; }
+
+.info-label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+/* Photo Section Enhancements */
+.photo-section {
+    padding: 20px !important;
+}
+
+#sidebar-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
+}
+
+#delete-photo-btn:hover {
+    background: #b03a3a !important;
+    transform: scale(1.1);
+}
+
+/* Status Messages */
+#save-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    min-width: 0;
+    flex-shrink: 1;
+}
+
+/* Edit Form Styling */
+.edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+/* Divider between sections */
+.sidebar-section + .sidebar-section {
+    margin-top: 8px;
+}

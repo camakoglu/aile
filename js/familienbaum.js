@@ -139,9 +139,23 @@ class Familienbaum
 		// Add a group that will contain the circle and the text
 		let circle_group =
 			node_enter_group.append("g").attr("cursor", "pointer").on("click", (event, node) => {
-                if (event.defaultPrevented) return; 
-                
-                // Check for Shift key
+                if (event.defaultPrevented) return;
+
+                // Check if sidebar is open
+                const sidebar = document.getElementById('family-sidebar');
+                const sidebarIsOpen = sidebar && sidebar.classList.contains('active');
+
+                // If sidebar is open (with or without shift key), switch to that person
+                if (sidebarIsOpen) {
+                    if (typeof this.create_editing_form === "function") {
+                        let node_of_dag = node;
+                        let node_of_dag_all = this.dag_all.find_node(node.data);
+                        this.create_editing_form(node_of_dag, node_of_dag_all);
+                    }
+                    return;
+                }
+
+                // Check for Shift key when sidebar is closed
                 if (event.shiftKey) {
                     if (typeof this.create_editing_form === "function") {
                         let node_of_dag = node;
@@ -151,7 +165,7 @@ class Familienbaum
                     return;
                 }
 
-                // Only expand/collapse on circle click
+                // Only expand/collapse on circle click when sidebar is closed and no shift key
 				this.click(node.data);
 				this.draw(true, node.data);
 			});
