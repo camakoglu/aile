@@ -8,6 +8,8 @@ class Familienbaum
 		this.g = this.svg.append("g");
 		this.zoom = d3.zoom().on("zoom", event => this.g.attr("transform", event.transform));
 		this.svg.call(this.zoom);
+		// Make scroll zoom slower and smoother
+		this.zoom.wheelDelta(event => -event.deltaY * (event.deltaMode === 1 ? 0.05 : 0.0005)); // Default is 0.002
 		this.info = this.add_info_text(svg);
 		// Set the duration of a transition
 		this.transition_milliseconds = 500;
@@ -139,6 +141,16 @@ class Familienbaum
 			node_enter_group.append("g").attr("cursor", "pointer").on("click", (event, node) => {
                 if (event.defaultPrevented) return; 
                 
+                // Check for Shift key
+                if (event.shiftKey) {
+                    if (typeof this.create_editing_form === "function") {
+                        let node_of_dag = node;
+                        let node_of_dag_all = this.dag_all.find_node(node.data);
+                        this.create_editing_form(node_of_dag, node_of_dag_all);
+                    }
+                    return;
+                }
+
                 // Only expand/collapse on circle click
 				this.click(node.data);
 				this.draw(true, node.data);
@@ -163,6 +175,7 @@ class Familienbaum
             .append("text")
             .attr("cursor", "pointer")
             .attr("class", "plus-label")
+            .attr("font-size", "50%") // Make it smaller
             .append("tspan")
             .attr("text-anchor", "middle")
             .attr("y", node => -get_node_size() / (is_member(node) ? 1.1 : 3.0))

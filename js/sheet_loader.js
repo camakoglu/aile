@@ -30,8 +30,23 @@ function convertDriveLink(url) {
     return url;
 }
 
-function processSheetData(data) {
-    console.log("Processing " + data.length + " rows in Hierarchical Mode.");
+// --- HARDCODED COLUMN INDICES (0-based) ---
+// These must match your Google Sheet
+const COL_GEN = 0;          // A: Generation
+const COL_NAME = 1;         // B: Name (Ad)
+const COL_SURNAME = 2;      // C: Surname (Soyad)
+// COL_FATHER = 3;          // D: Father (Baba) - Structural, not for direct editing
+// COL_MOTHER = 4;          // E: Mother (Anne) - Structural, not for direct editing
+const COL_BIRTH_DATE = 5;   // F: Birth Date (Doğum Tarihi)
+const COL_BIRTHPLACE = 6;   // G: Birth Place (Doğum Yeri)
+const COL_DEATH_DATE = 7;   // H: Death Date (Ölüm Tarihi)
+const COL_IMAGE_PATH = 8;   // I: Image Path (Resim Yolu)
+const COL_MARRIAGE = 9;     // J: Marriage Date (Evlilik Tarihi)
+const COL_NOTE = 10;        // K: Note (Not)
+
+
+function processSheetData(rows) {
+    console.log("Processing " + rows.length + " data rows in Hierarchical Mode with column numbers.");
     
     const members = {};
     const links = [];
@@ -46,8 +61,12 @@ function processSheetData(data) {
     const genMap = {}; 
     
     // Maps generation level to the *active* spouse ID at that level (if any)
-    // This is used to link children to the correct mother
+    // This is used to link children to the correct mother (Fallback)
     const spouseMap = {};
+
+    // Maps generation level to a dictionary of Spouse Names -> IDs
+    // spouseNameMap[5] = { "Sakine": "mem_16", "Funduka": "mem_17" }
+    const spouseNameMap = {};
 
     // Helper to create/get union
     function getUnion(p1, p2) {
@@ -61,115 +80,99 @@ function processSheetData(data) {
         return unions[uKey];
     }
 
-    data.forEach((row, index) => {
-        // Auto-generate ID if missing
-        // We assume column 'id' might be the generation column now?
-        // User said "First column is generation id".
-        // D3 CSV parsing uses the header row keys.
-        // We need to find which key corresponds to the first column.
-        // Heuristic: Look for keys like "Gen", "Nesil", "Generation", or just the first key.
-        
-        const keys = Object.keys(row);
-        if (keys.length === 0) return;
-        
-        // Assume first column is Generation
-        const genKey = keys[0]; 
-        const rawGen = row[genKey];
+    rows.forEach((row, index) => {
+        if (row.length === 0 || clean(row[COL_GEN]) === "") return; 
+
+        const rawGen = row[COL_GEN];
         const genType = parseGen(rawGen);
 
-        if (genType === null && rawGen === "") return; // Skip empty rows
+        if (genType === null && rawGen === "") return; 
 
-        // Construct Member Object
-        // We try to find columns by name, falling back to loose matching
-        function getCol(keywords) {
-            for (let k of keys) {
-                const lower = k.toLowerCase();
-                for (let kw of keywords) {
-                    if (lower.includes(kw)) return row[k];
-                }
-            }
-            return "";
-        }
-
-        // Unique ID for this person (row based to be safe)
-        const id = "mem_" + index;
+        const id = "mem_" + index; 
         
-        let name = getCol(["name", "isim", "ad soyad", "ad-soyad"]);
-        if (!name) {
-            // Try split columns
-            const firstName = getCol(["adı", "adi", "first name", "ad"]);
-            const lastName = getCol(["soyadı", "soyadi", "last name", "soyad"]);
-            if (firstName) {
-                name = firstName + (lastName ? " " + lastName : "");
-            } else {
-                name = "Unknown";
-            }
-        }
+        const firstName = clean(row[COL_NAME]);
+        const lastName = clean(row[COL_SURNAME]);
+        let fullName = firstName;
+        if (lastName) fullName += " " + lastName;
+        if (!fullName) fullName = "Unknown";
 
-        const imgRaw = getCol(["resim yolu", "image", "foto", "img", "resim"]);
-        const img = convertDriveLink(clean(imgRaw).replace(/\\/g, "/"));
+        const imgRaw = clean(row[COL_IMAGE_PATH]);
+        const img = convertDriveLink(imgRaw.replace(/\\/g, "/"));
         
+        // Read Parent Names for linking
+        const motherNameData = clean(row[4]); // Col E: Mother Name (hardcoded index 4 based on user info)
+
         members[id] = {
             "id": id,
-            "name": name,
-            "birth_date": getCol(["birth_date", "dogum", "doğum"]),
-            "death_date": getCol(["death", "olum", "ölüm"]),
-            "birthplace": getCol(["place", "yer"]),
+            "name": fullName, 
+            "first_name": firstName, 
+            "last_name": lastName,   
+            "birth_date": clean(row[COL_BIRTH_DATE]),
+            "birthplace": clean(row[COL_BIRTHPLACE]),
+            "death_date": clean(row[COL_DEATH_DATE]),
             "image_path": img,
-            // Preserve other fields if needed
-            "note": getCol(["note", "not"]),
-            "occupation": getCol(["occupation", "is", "iş", "meslek"])
+            "marriage": clean(row[COL_MARRIAGE]),
+            "note": clean(row[COL_NOTE]),
+            "gen": null, 
+            "is_spouse": (genType === "E") 
         };
 
-        // LOGIC
+        // LOGIC for linking and generation
         if (genType === "E") {
             // This is a Spouse
             if (!lastRegularMember) {
-                console.warn("Row " + index + ": Spouse 'E' found but no partner exists above.");
+                console.warn("Row " + (index + 2) + ": Spouse 'E' found but no partner exists above.");
                 return;
             }
-            
-            // Link to the last regular member (Partner)
-            // We assume E is spouse of the person at the same level?
-            // "spouse of the last non-E person above them"
             
             const partnerID = lastRegularMember;
             const partnerGen = lastRegularMemberGen;
             
-            // Register as current spouse for this generation level
-            spouseMap[partnerGen] = id;
+            members[id].gen = partnerGen; 
             
-            // Create union immediately to show partnership
+            spouseMap[partnerGen] = id; // Set as last seen spouse
+            
+            // Add to Name Map
+            if (!spouseNameMap[partnerGen]) spouseNameMap[partnerGen] = {};
+            spouseNameMap[partnerGen][firstName] = id; // Map "Sakine" -> ID
+            
             getUnion(partnerID, id);
             
         } else {
             // This is a Child (Numeric Gen)
             const gen = genType;
+            members[id].gen = gen; 
             
-            // Update state
             lastRegularMember = id;
             lastRegularMemberGen = gen;
             genMap[gen] = id;
-            spouseMap[gen] = null; // Reset spouse for this new person
+            spouseMap[gen] = null; // Reset last spouse
+            spouseNameMap[gen] = {}; // Reset spouse name map for this new person
             
             // Find Parent
-            // Child at Gen N has parent at Gen N-1
             if (gen > 1) {
                 const fatherID = genMap[gen - 1];
-                const motherID = spouseMap[gen - 1]; // The last spouse recorded at that level
+                let motherID = null;
+                
+                // Try to find mother by name
+                if (motherNameData && spouseNameMap[gen - 1] && spouseNameMap[gen - 1][motherNameData]) {
+                    motherID = spouseNameMap[gen - 1][motherNameData];
+                } else {
+                    // Fallback to last seen spouse
+                    motherID = spouseMap[gen - 1];
+                }
                 
                 if (fatherID) {
                     const uID = getUnion(fatherID, motherID);
                     links.push([uID, id]);
-                } else {
-                    console.warn("Row " + index + ": Gen " + gen + " found but no parent at Gen " + (gen-1));
                 }
+            } else {
+                console.warn("Row " + (index + 2) + ": Gen " + gen + " found but no parent at Gen " + (gen-1));
             }
         }
     });
     
     // Determine Start Node (First Gen 1)
-    // Or just the first member
     const startID = Object.keys(members)[0];
 
     return {
@@ -181,10 +184,18 @@ function processSheetData(data) {
 
 async function loadFromGoogleSheet(url) {
     try {
-        const data = await d3.csv(url);
-        if (!data || data.length === 0) throw new Error("No data found.");
+        // Use d3.text to get raw CSV content
+        const rawText = await d3.text(url);
         
-        const processed = processSheetData(data);
+        // Parse the entire CSV structure first
+        const allRows = d3.csvParseRows(rawText);
+        
+        if (!allRows || allRows.length <= 1) throw new Error("No data rows found.");
+        
+        // Skip the header row (index 0)
+        const dataRows = allRows.slice(1);
+        
+        const processed = processSheetData(dataRows);
         console.log("Graph built:", processed);
         return processed;
     } catch (error) {
