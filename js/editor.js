@@ -650,11 +650,11 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
         fieldsToEdit.forEach(key => {
              const displayKey = keyMap[key] || key;
              const value = data[key] || "";
-             
+
              detailsHtml += `
                 <div class="info-row">
-                    <label class="info-label" style="display:block; font-size:0.8em; color:#666;">${displayKey}</label>
-                    <input type="text" class="sidebar-input" data-key="${key}" value="${value}" style="width:100%; padding:5px; margin-bottom:8px; border:1px solid #ccc; border-radius:4px;">
+                    <label class="info-label">${displayKey}</label>
+                    <input type="text" class="sidebar-input" data-key="${key}" value="${value}">
                 </div>
              `;
         });
@@ -665,25 +665,25 @@ Familienbaum.prototype.create_editing_form = function(node_of_dag, node_of_dag_a
         // Add Save and Dynamic Add Button
         let actionButton = "";
         if (isSpouse) {
-            actionButton = `<button id="btn-add-child" class="action-btn btn-primary" style="font-size:0.8em;">👶 Çocuk Ekle</button>`;
+            actionButton = `<button id="btn-add-child" class="action-btn btn-primary">👶 Çocuk Ekle</button>`;
         } else {
-            actionButton = `<button id="btn-add-spouse" class="action-btn btn-secondary" style="font-size:0.8em;">💍 Eş Ekle</button>`;
+            actionButton = `<button id="btn-add-spouse" class="action-btn btn-secondary">💍 Eş Ekle</button>`;
         }
 
         // Add delete button for leaf nodes
         let deleteButton = "";
         if (isLeafNode) {
-            deleteButton = `<button id="btn-delete-child" class="action-btn btn-danger" style="font-size:0.8em; background-color:#dc3545;">🗑️ Sil</button>`;
+            deleteButton = `<button id="btn-delete-child" class="action-btn btn-danger">🗑️ Sil</button>`;
         }
 
         detailsHtml += `
-            <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
-                <div style="display:flex; gap:5px;">
+            <div class="button-row" style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; gap:6px; flex-wrap:wrap;">
+                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                     ${actionButton}
                     ${deleteButton}
                 </div>
-                <div style="text-align:right;">
-                    <span id="save-status" style="font-size:0.85em; margin-right:10px;"></span>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:nowrap;">
+                    <span id="save-status"></span>
                     <button id="btn-save-changes" class="action-btn btn-success">💾 Kaydet</button>
                 </div>
             </div>
