@@ -1,16 +1,11 @@
 class Familienbaum {
-	constructor(input, svg, onUpdate) {
+	constructor(input, svg) {
 		// Remember the inputs
 		this.data = input;
 		this.svg = svg;
-		this.onUpdate = onUpdate || function () { };
 		// Prepare things related to d3 and SVG
 		this.g = this.svg.append("g");
-		this.zoom = d3.zoom().on("zoom", event => {
-			this.g.attr("transform", event.transform);
-			if (event.sourceEvent) this.onUpdate(); // Only update if triggered by user
-		});
-		this.zoom.on("end", () => this.onUpdate()); // Update on end as well to be sure
+		this.zoom = d3.zoom().on("zoom", event => this.g.attr("transform", event.transform));
 		this.svg.call(this.zoom);
 		// Make scroll zoom slower and smoother
 		this.zoom.wheelDelta(event => -event.deltaY * (event.deltaMode === 1 ? 0.05 : 0.0005)); // Default is 0.002
@@ -98,10 +93,7 @@ class Familienbaum {
 					d3.zoomTransform(this.g.node())
 						.translate(current_node.added_data.y0 - current_node.y,
 							current_node.added_data.x0 - current_node.x),
-				)
-				.on("end", () => this.onUpdate()); // Update URL after transition
-		else this.onUpdate();
-
+				);
 		// Store current node positions for next transition
 		for (let node of this.dag.nodes()) {
 			node.added_data.x0 = node.x;
