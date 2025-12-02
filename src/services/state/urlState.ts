@@ -1,6 +1,4 @@
-import * as d3 from 'd3';
 import { FamilyData, Member } from '../../types/types';
-import { Familienbaum } from '../../components/Tree/Familienbaum';
 
 // Map between persistent IDs and mem_X IDs
 export const persistentIdMap = new Map<string, string>(); // persistentId -> mem_X
@@ -33,7 +31,10 @@ export function buildIdMaps(familyData: FamilyData) {
 
     const counts = new Map<string, number>(); // Track duplicates
 
-    for (const memId in familyData.members) {
+    // Sort keys to ensure deterministic order for duplicate handling
+    const memberIds = Object.keys(familyData.members).sort();
+
+    for (const memId of memberIds) {
         const member = familyData.members[memId];
         if (!member.is_spouse || member.first_name) {
             let persistentId = getPersistentId(member);
@@ -141,22 +142,13 @@ export function decodeState(): any {
 }
 
 // Update URL hash with current state
-export function updateURL(familienbaum: Familienbaum, familyData: FamilyData) {
-    if (!familienbaum || !familienbaum.g) return;
+export function updateURL(state: any) {
+    if (!state) return;
 
-    const transform = d3.zoomTransform(familienbaum.g.node()!);
-    const visibleNodes = new Set<string>();
-
-    if (familienbaum.dag_all) {
-        for (let node of familienbaum.dag_all.nodes()) {
-            if (node.added_data && node.added_data.is_visible) {
-                visibleNodes.add(node.data);
-            }
-        }
-    }
-
-    const currentNode = familyData ? familyData.start : null;
-    const patrilineal = localStorage.getItem('soyagaci_patrilineal_mode') === 'true';
+    const transform = state.transform;
+    const visibleNodes = state.visibleNodes;
+    const currentNode = state.selectedNodeId || (state.familyData ? state.familyData.start : null);
+    const patrilineal = state.isPatrilineal;
 
     const encoded = encodeState(currentNode, transform, patrilineal, visibleNodes);
     if (encoded) {
@@ -165,14 +157,14 @@ export function updateURL(familienbaum: Familienbaum, familyData: FamilyData) {
 }
 
 // Share functionality with TinyURL
-export async function shareCurrentState(familienbaum: Familienbaum, familyData: FamilyData) {
+export async function shareCurrentState(state: any) {
     const shareBtn = document.getElementById('share-btn');
     if (!shareBtn) return;
     const originalContent = shareBtn.innerHTML;
 
     try {
         // Update URL first to ensure it's current
-        updateURL(familienbaum, familyData);
+        updateURL(state);
 
         const fullURL = window.location.href;
 

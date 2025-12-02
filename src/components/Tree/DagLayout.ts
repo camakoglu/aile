@@ -196,7 +196,11 @@ export class DagLayout {
                 // If equal, fall-back to the age
                 let node_pair = [node_1, node_2];
                 let compare = node_pair.map((this.dag as any).get_age) as number[];
-                return compare[0] > compare[1] ? 1 : -1;
+                if (compare[0] !== compare[1]) {
+                    return compare[0] > compare[1] ? 1 : -1;
+                }
+                // Final tie-breaker: ID (stable sort)
+                return node_1.data > node_2.data ? 1 : -1;
             });
             let position = {
                 "x": 0.0,

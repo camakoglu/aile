@@ -75,6 +75,7 @@ export function processSheetData(rows: string[][]): FamilyData {
     const genMap: { [key: number]: string } = {};
     const spouseMap: { [key: number]: string | null } = {};
     const spouseNameMap: { [key: number]: { [key: string]: string } } = {};
+    const existingIds = new Set<string>();
 
     function getUnion(p1: string, p2: string | null) {
         const uKey = [p1, p2 || "unknown"].sort().join("_");
@@ -87,6 +88,31 @@ export function processSheetData(rows: string[][]): FamilyData {
         return unions[uKey];
     }
 
+    function normalizeGender(g: string): "E" | "K" | "U" {
+        g = g.toUpperCase();
+        if (g.startsWith("E") || g === "M") return "E";
+        if (g.startsWith("K") || g === "F" || g === "W") return "K";
+        return "U";
+    }
+
+    function generateStableId(name: string, surname: string, birthDate: string, index: number): string {
+        const slug = (str: string) => str.toLowerCase().replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/[^a-z0-9]/g, '');
+        let base = `${slug(name)}_${slug(surname)}`;
+        if (birthDate) base += `_${slug(birthDate)}`;
+
+        // If base is empty (e.g. empty row), fallback to index
+        if (base === "_") base = `row_${index}`;
+
+        let id = base;
+        let counter = 1;
+        while (existingIds.has(id)) {
+            id = `${base}_${counter}`;
+            counter++;
+        }
+        existingIds.add(id);
+        return id;
+    }
+
     rows.forEach((row, index) => {
         // Basic row validation
         if (row.length === 0 || clean(row[COL_GEN]) === "") return;
@@ -95,9 +121,12 @@ export function processSheetData(rows: string[][]): FamilyData {
         const genType = parseGen(rawGen);
         if (genType === null && rawGen === "") return;
 
-        const id = "mem_" + index;
         const firstName = clean(row[COL_NAME]);
         const lastName = clean(row[COL_SURNAME]);
+        const birthDate = clean(row[COL_BIRTH_DATE]);
+
+        const id = generateStableId(firstName, lastName, birthDate, index);
+
         let fullName = firstName;
         if (lastName) fullName += " " + lastName;
         if (!fullName) fullName = "Unknown";
@@ -110,13 +139,13 @@ export function processSheetData(rows: string[][]): FamilyData {
             name: fullName,
             first_name: firstName,
             last_name: lastName || undefined,
-            birth_date: clean(row[COL_BIRTH_DATE]) || undefined,
+            birth_date: birthDate || undefined,
             birthplace: clean(row[COL_BIRTHPLACE]) || undefined,
             death_date: clean(row[COL_DEATH_DATE]) || undefined,
             image_path: img || undefined,
             marriage: clean(row[COL_MARRIAGE]) || undefined,
             note: clean(row[COL_NOTE]) || undefined,
-            gender: (clean(row[COL_GENDER]) as any) || "U",
+            gender: normalizeGender(clean(row[COL_GENDER])),
             gen: undefined, // Placeholder
             is_spouse: (genType === "E")
         };

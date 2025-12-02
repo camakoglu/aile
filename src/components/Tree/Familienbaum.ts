@@ -46,7 +46,7 @@ export class Familienbaum {
         this.renderer = new TreeRenderer(
             this.g,
             (node, event) => this.handleNodeClick(node, event),
-            (node, event) => this.handleNodeDblClick(node, event),
+            (node) => this.handleNodeDblClick(node),
             (node) => this.handleEditClick(node)
         );
 
@@ -64,13 +64,117 @@ export class Familienbaum {
         this.dag = undefined; // the part of the DAG that will be visualized
         // Find starting node and set node coordinates
         let node_of_dag_all = this.dag_all.find_node(this.data.start);
-        node_of_dag_all.added_data.x0 = parseFloat(this.svg.attr("height")) / 2;
-        node_of_dag_all.added_data.y0 = parseFloat(this.svg.attr("width")) / 2;
+
+        let h = parseFloat(this.svg.attr("height"));
+        let w = parseFloat(this.svg.attr("width"));
+        if (isNaN(h)) h = window.innerHeight || 800;
+        if (isNaN(w)) w = window.innerWidth || 1000;
+
+        node_of_dag_all.added_data.x0 = h / 2;
+        node_of_dag_all.added_data.y0 = w / 2;
         node_of_dag_all.added_data.is_visible = true;
-        // Choose visible nodes at the beginning
-        for (let node of this.get_relationship_in_dag_all(node_of_dag_all)) {
-            node.added_data.is_visible = true;
+
+        // Choose visible nodes at the beginning: Root + Spouses + Children
+        // We avoid showing parents/ancestors by default as requested ("root & its childs only")
+
+        // 1. Show Spouses and Children (via Unions where root is a parent)
+        // Root -> Union -> Child
+        // Root -> Union <- Spouse
+        const childUnions = node_of_dag_all.children ? node_of_dag_all.children() : [];
+        if (childUnions) {
+            for (let u of childUnions) {
+                u.added_data.is_visible = true; // Union visible
+
+                // Show Spouse (other parent of this union)
+                const parents = (this.dag_all as any).parents ? (this.dag_all as any).parents(u) : [];
+                if (parents) {
+                    for (let p of parents) {
+                        p.added_data.is_visible = true;
+                    }
+                }
+
+                // Show Children
+                const kids = u.children ? u.children() : [];
+                if (kids) {
+                    for (let k of kids) {
+                        k.added_data.is_visible = true;
+                    }
+                }
+            }
         }
+    }
+
+    updateData(newData: FamilyData, restoreVisibleNodes?: Set<string>) {
+        // 1. Capture current visibility state from the existing DAG (if not provided)
+        let visibleNodes = restoreVisibleNodes;
+        if (!visibleNodes) {
+            visibleNodes = new Set<string>();
+            if (this.dag_all) {
+                for (let node of this.dag_all.nodes()) {
+                    if (node.added_data?.is_visible) visibleNodes.add(node.data);
+                }
+            }
+        }
+
+        // 2. Update data and rebuild DAG
+        this.data = newData;
+        // Re-run reset_dags logic but without resetting visibility blindly
+        if (!this.data.links) throw "No links in input";
+        if (!this.data.members) throw "No members in input";
+        if (!this.data.start) throw "No starting node ID in input";
+
+        this.dag_all = dag_with_family_data(this.data.links, this.data.members);
+        this.dag = undefined;
+
+        // 3. Restore visibility state
+        let node_of_dag_all = this.dag_all.find_node(this.data.start);
+        if (!node_of_dag_all) {
+            console.error("Start node not found in new data:", this.data.start);
+            return;
+        }
+
+        // Set root coordinates (keep center)
+        let h = parseFloat(this.svg.attr("height"));
+        let w = parseFloat(this.svg.attr("width"));
+        if (isNaN(h)) h = window.innerHeight || 800;
+        if (isNaN(w)) w = window.innerWidth || 1000;
+
+        node_of_dag_all.added_data.x0 = h / 2;
+        node_of_dag_all.added_data.y0 = w / 2;
+
+        // Restore visibility
+        let restoredCount = 0;
+        for (let node of this.dag_all.nodes()) {
+            if (visibleNodes.has(node.data)) {
+                node.added_data.is_visible = true;
+                restoredCount++;
+            }
+        }
+
+        // Ensure root is always visible
+        node_of_dag_all.added_data.is_visible = true;
+
+        // Fallback: If nothing restored (e.g. fresh load or filtered view switch), use default view
+        if (visibleNodes.size <= 1 || restoredCount <= 1) {
+            // Same logic as reset_dags: Root + Spouses + Children
+            const childUnions = node_of_dag_all.children ? node_of_dag_all.children() : [];
+            if (childUnions) {
+                for (let u of childUnions) {
+                    u.added_data.is_visible = true;
+                    const parents = (this.dag_all as any).parents ? (this.dag_all as any).parents(u) : [];
+                    if (parents) {
+                        for (let p of parents) p.added_data.is_visible = true;
+                    }
+                    const kids = u.children ? u.children() : [];
+                    if (kids) {
+                        for (let k of kids) k.added_data.is_visible = true;
+                    }
+                }
+            }
+        }
+
+        // 4. Redraw
+        this.draw(false);
     }
 
     handleNodeClick(node: D3Node, event: any) {
@@ -92,7 +196,7 @@ export class Familienbaum {
 
         // Only expand/collapse on circle click when sidebar is closed and no shift key
         this.click(node.data);
-        this.draw(true, node.data);
+        this.draw(false, node.data); // Don't recenter on expand/collapse to prevent drift
     }
 
     handleEditClick(node: D3Node) {
@@ -103,7 +207,7 @@ export class Familienbaum {
         }
     }
 
-    handleNodeDblClick(node: D3Node, event: any) {
+    handleNodeDblClick(node: D3Node) {
         let node_of_dag_all = this.dag_all.find_node(node.data);
         // Collapse Ancestors: Hide parents
         // Parents: Member <- Union <- Parent
@@ -114,7 +218,7 @@ export class Familienbaum {
                 parentNode.added_data.is_visible = false;
             }
         }
-        this.draw(true, node.data);
+        this.draw(false, node.data); // Don't recenter to prevent drift
     }
 
     click(current_node_id: string) {
@@ -152,6 +256,45 @@ export class Familienbaum {
         for (let link of this.dag_all.links())
             if (link.source.added_data.is_visible && link.target.added_data.is_visible)
                 links.push([link.source.data, link.target.data]);
+
+        // Safety check: If no links are visible, reset to default view (root + children)
+        if (links.length === 0) {
+            console.warn("No visible links found. Resetting to default view.");
+
+            // Reset all visibility
+            for (let node of this.dag_all.nodes()) {
+                node.added_data.is_visible = false;
+            }
+
+            // Set root visible
+            const rootNode = this.dag_all.find_node(current_node_id);
+            rootNode.added_data.is_visible = true;
+
+            // Show root's children and spouses (via unions)
+            const childUnions = rootNode.children ? rootNode.children() : [];
+            for (let u of childUnions) {
+                u.added_data.is_visible = true;
+
+                // Show spouse (other parent)
+                const parents = this.dag_all.parents(u);
+                for (let p of parents) {
+                    p.added_data.is_visible = true;
+                }
+
+                // Show children
+                const kids = u.children ? u.children() : [];
+                for (let k of kids) {
+                    k.added_data.is_visible = true;
+                }
+            }
+
+            // Rebuild links array
+            links = [];
+            for (let link of this.dag_all.links())
+                if (link.source.added_data.is_visible && link.target.added_data.is_visible)
+                    links.push([link.source.data, link.target.data]);
+        }
+
         // Create DAG on filtered edges
         this.dag_all.get_data_and_xy(this.dag as any); // if a filtered DAG exists, transfer data
         this.dag = dag_with_family_data(links); // create on filtered links
@@ -165,11 +308,24 @@ export class Familienbaum {
         this.layout = new DagLayout(this.dag, [80, 140]);
         this.layout.run();
         // Find current node in the filtered DAG
-        let current_node = this.dag.find_node(this.data.start = current_node_id);
+        let current_node: D3Node;
+        try {
+            current_node = this.dag.find_node(this.data.start = current_node_id);
+        } catch (e) {
+            console.warn(`Node ${current_node_id} not found in filtered DAG. Falling back to first available node.`);
+            const allNodes = this.dag.nodes();
+            if (allNodes.length > 0) {
+                current_node = allNodes[0];
+                this.data.start = current_node.data;
+            } else {
+                console.warn("Filtered DAG is empty.");
+                return;
+            }
+        }
 
         // Save state to localStorage
         try {
-            localStorage.setItem('soyagaci_last_node', current_node_id);
+            localStorage.setItem('soyagaci_last_node', current_node.data);
         } catch (e) { /* ignore */ }
 
         // Draw nodes and links via Renderer
@@ -177,15 +333,20 @@ export class Familienbaum {
         this.renderer.draw_links(this.dag.links(), current_node);
 
         // Recenter the entire DAG to window
-        if (recenter)
-            this.svg.transition()
-                .duration(this.transition_milliseconds)
-                .call(
-                    this.zoom.transform,
-                    d3.zoomTransform(this.g.node()!)
-                        .translate(current_node.added_data.y0! - current_node.y,
-                            current_node.added_data.x0! - current_node.x),
-                );
+        if (recenter) {
+            const tx = current_node.added_data.y0! - current_node.y;
+            const ty = current_node.added_data.x0! - current_node.x;
+
+            if (!isNaN(tx) && !isNaN(ty)) {
+                this.svg.transition()
+                    .duration(this.transition_milliseconds)
+                    .call(
+                        this.zoom.transform,
+                        d3.zoomTransform(this.g.node()!)
+                            .translate(tx, ty),
+                    );
+            }
+        }
         // Store current node positions for next transition
         for (let node of this.dag.nodes()) {
             node.added_data.x0 = node.x;
