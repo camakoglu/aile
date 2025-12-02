@@ -12,6 +12,7 @@ export const COLUMN_MAPPING: { [key: string]: number } = {
     "death_date": 8,     // H: Ölüm Tarihi
     "image_path": 9,     // I: Resim Yolu
     "marriage": 10,      // J: Evlilik Tarihi
+    "gender": 11,        // K: Cinsiyet (M/F/U)
     "note": 12,          // L: Not
-    "gender": 11         // K: Cinsiyet (M/F/U)
+    "id": 13             // M: ID
 };
