@@ -14,9 +14,17 @@ export async function saveData(node: D3Node, updates: any) {
     }
 
     try {
-        const memberId = parseInt(node.data.split("_")[1]);
-        // sheetRow is 1-based, matches row in Google Sheet
-        const sheetRow = memberId + 2;
+        const memberData = (node.added_data as any).input;
+        let sheetRow: number;
+
+        if (memberData && memberData.row_index) {
+            sheetRow = memberData.row_index;
+        } else if (node.data.startsWith("mem_")) {
+            const memberId = parseInt(node.data.split("_")[1]);
+            sheetRow = memberId + 2;
+        } else {
+            throw new Error("Satır numarası bulunamadı.");
+        }
 
         const payload = {
             row: sheetRow,
@@ -78,7 +86,6 @@ export async function saveData(node: D3Node, updates: any) {
 export async function submitNewChild(node: D3Node) {
     const statusEl = document.getElementById('add-status');
     if (!statusEl) return;
-    const memberId = parseInt(node.data.split("_")[1]);
 
     // 1. Collect Data
     const inputs = document.querySelectorAll('#sidebar-details input.sidebar-input');
@@ -100,26 +107,43 @@ export async function submitNewChild(node: D3Node) {
         return;
     }
 
-    // 2. Calculate Anchor & Parents
-    let anchorId = memberId;
-    const isClickedNodeSpouse = (node.added_data as any).input.is_spouse;
-
     const familyData = store.getState().familyData;
+    if (!familyData || !familyData.members) {
+        alert("Veri yüklenemedi.");
+        return;
+    }
 
-    if (isClickedNodeSpouse && familyData && familyData.members) {
-        let tempId = memberId;
-        while (tempId >= 0) {
-            const m = familyData.members["mem_" + tempId];
-            if (!m) break;
+    // Build Row Map
+    const rowMap = new Map<number, any>();
+    Object.values(familyData.members).forEach((m: any) => {
+        if (m.row_index) rowMap.set(m.row_index, m);
+    });
+
+    const clickedMemberData = (node.added_data as any).input;
+    if (!clickedMemberData || !clickedMemberData.row_index) {
+        alert("Seçilen kişi için satır verisi bulunamadı.");
+        return;
+    }
+
+    // 2. Calculate Anchor & Parents
+    let anchorRow = clickedMemberData.row_index;
+    const isClickedNodeSpouse = clickedMemberData.is_spouse;
+
+    if (isClickedNodeSpouse) {
+        // Find the main parent (walk back rows)
+        let tempRow = anchorRow - 1;
+        while (tempRow > 0) {
+            const m = rowMap.get(tempRow);
+            if (!m) break; // Should not happen if rows are contiguous
             if (!m.is_spouse) {
-                anchorId = tempId;
+                anchorRow = tempRow;
                 break;
             }
-            tempId--;
+            tempRow--;
         }
     }
 
-    const anchorNode = familyData?.members["mem_" + anchorId];
+    const anchorNode = rowMap.get(anchorRow);
     if (!anchorNode) {
         alert("Hata: Ebeveyn bulunamadı.");
         return;
@@ -131,30 +155,27 @@ export async function submitNewChild(node: D3Node) {
     }
 
     // 3. Calculate Insertion Point
-    let lastFamilyIndex = anchorId;
-    let checkId = anchorId + 1;
+    let insertAfterRow = anchorRow;
+    let checkRow = anchorRow + 1;
 
-    if (familyData && familyData.members) {
-        while (true) {
-            const nextMem = familyData.members["mem_" + checkId];
-            if (!nextMem) break;
+    while (true) {
+        const nextMem = rowMap.get(checkRow);
+        if (!nextMem) break; // End of list
 
-            if (nextMem.is_spouse) {
-                lastFamilyIndex = checkId;
-                checkId++;
-                continue;
-            }
-
-            if (nextMem.gen !== undefined && anchorGen !== undefined && nextMem.gen > anchorGen) {
-                lastFamilyIndex = checkId;
-                checkId++;
-                continue;
-            }
-            break;
+        if (nextMem.is_spouse) {
+            insertAfterRow = checkRow;
+            checkRow++;
+            continue;
         }
+
+        if (nextMem.gen !== undefined && nextMem.gen > anchorGen) {
+            insertAfterRow = checkRow;
+            checkRow++;
+            continue;
+        }
+        break;
     }
 
-    const insertAfterRow = lastFamilyIndex + 2;
     const childGen = anchorGen + 1;
 
     // 4. Add System Fields to Updates
@@ -167,9 +188,9 @@ export async function submitNewChild(node: D3Node) {
         // Both anchor and clicked node are parents
         if (anchorGender === 'E') {
             updates[COLUMN_MAPPING['father']] = anchorNode.first_name;
-            updates[COLUMN_MAPPING['mother']] = (node.added_data as any).input.first_name;
+            updates[COLUMN_MAPPING['mother']] = clickedMemberData.first_name;
         } else {
-            updates[COLUMN_MAPPING['father']] = (node.added_data as any).input.first_name;
+            updates[COLUMN_MAPPING['father']] = clickedMemberData.first_name;
             updates[COLUMN_MAPPING['mother']] = anchorNode.first_name;
         }
     } else {
@@ -209,10 +230,12 @@ export async function submitNewChild(node: D3Node) {
 
             try {
                 const newChildRow = insertAfterRow + 1;
-                const newChildMemberId = newChildRow - 2;
+                // Create temp node with row_index for uploadPhoto
                 const tempNode: any = {
-                    data: "mem_" + newChildMemberId,
-                    added_data: { input: {} }
+                    data: "temp_child",
+                    added_data: {
+                        input: { row_index: newChildRow }
+                    }
                 };
 
                 await uploadPhoto(pendingChildPhoto, tempNode);
@@ -255,7 +278,6 @@ export async function submitNewChild(node: D3Node) {
 export async function submitNewSpouse(node: D3Node) {
     const statusEl = document.getElementById('add-status');
     if (!statusEl) return;
-    const memberId = parseInt(node.data.split("_")[1]);
 
     // 1. Collect Data
     const inputs = document.querySelectorAll('#sidebar-details input.sidebar-input, #sidebar-details select.sidebar-input');
@@ -277,27 +299,43 @@ export async function submitNewSpouse(node: D3Node) {
         return;
     }
 
-    // 2. Calculate Insertion Point
-    let insertAfterRow = memberId;
-    let checkId = memberId + 1;
-
     const familyData = store.getState().familyData;
-
-    if (familyData && familyData.members) {
-        while (true) {
-            const nextMem = familyData.members["mem_" + checkId];
-            if (!nextMem) break;
-
-            if (nextMem.is_spouse) {
-                insertAfterRow = checkId;
-                checkId++;
-                continue;
-            }
-            break;
-        }
+    if (!familyData || !familyData.members) {
+        alert("Veri yüklenemedi.");
+        return;
     }
 
-    const targetRow = insertAfterRow + 2;
+    // Build Row Map
+    const rowMap = new Map<number, any>();
+    Object.values(familyData.members).forEach((m: any) => {
+        if (m.row_index) rowMap.set(m.row_index, m);
+    });
+
+    const clickedMemberData = (node.added_data as any).input;
+    if (!clickedMemberData || !clickedMemberData.row_index) {
+        alert("Seçilen kişi için satır verisi bulunamadı.");
+        return;
+    }
+
+    const anchorRow = clickedMemberData.row_index;
+
+    // 2. Calculate Insertion Point
+    let insertAfterRow = anchorRow;
+    let checkRow = anchorRow + 1;
+
+    while (true) {
+        const nextMem = rowMap.get(checkRow);
+        if (!nextMem) break;
+
+        if (nextMem.is_spouse) {
+            insertAfterRow = checkRow;
+            checkRow++;
+            continue;
+        }
+        break;
+    }
+
+    const targetRow = insertAfterRow + 1;
 
     // 3. Add System Fields to Updates
     updates[COLUMN_MAPPING['gen_col']] = "E";
@@ -334,10 +372,12 @@ export async function submitNewSpouse(node: D3Node) {
             statusEl.style.color = "orange";
 
             try {
-                const newSpouseMemberId = targetRow - 2;
+                const newSpouseRow = targetRow + 1;
                 const tempNode: any = {
-                    data: "mem_" + newSpouseMemberId,
-                    added_data: { input: {} }
+                    data: "temp_spouse",
+                    added_data: {
+                        input: { row_index: newSpouseRow }
+                    }
                 };
 
                 await uploadPhoto(pendingChildPhoto, tempNode);
@@ -381,8 +421,17 @@ export async function deleteChild(node: D3Node) {
     if (!confirmDelete) return;
 
     try {
-        const memberId = parseInt(node.data.split("_")[1]);
-        const sheetRow = memberId + 2;
+        const memberData = (node.added_data as any).input;
+        let sheetRow: number;
+
+        if (memberData && memberData.row_index) {
+            sheetRow = memberData.row_index;
+        } else if (node.data.startsWith("mem_")) {
+            const memberId = parseInt(node.data.split("_")[1]);
+            sheetRow = memberId + 2;
+        } else {
+            throw new Error("Satır numarası bulunamadı.");
+        }
 
         const statusEl = document.getElementById('save-status');
         if (statusEl) {
