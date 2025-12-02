@@ -232,18 +232,34 @@ export class Familienbaum {
                 adjacent.added_data.is_visible = true;
         } else // not highlighted (already expanded)
         {
-            // Collapse: Hide children only
-            // Children: Member -> Union -> Child
-            // dag_all.children() returns Unions (need cast to any or check implementation)
-            let unions = (node_of_dag_all as any).children();
-            if (unions) {
-                for (let unionNode of unions) {
-                    unionNode.added_data.is_visible = false;
-                    let kids = (unionNode as any).children();
-                    if (kids) {
-                        for (let childNode of kids) {
-                            childNode.added_data.is_visible = false;
+            // Collapse: Hide descendants recursively
+            this.hideDescendants(node_of_dag_all);
+        }
+    }
+
+    hideDescendants(node: D3Node) {
+        // Children: Member -> Union -> Child
+        const unions = (node as any).children ? (node as any).children() : [];
+        if (unions) {
+            for (let unionNode of unions) {
+                unionNode.added_data.is_visible = false;
+
+                // Hide spouses attached to this union (except the node itself)
+                const parents = (this.dag_all as any).parents ? (this.dag_all as any).parents(unionNode) : [];
+                if (parents) {
+                    for (let parent of parents) {
+                        if (parent.data !== node.data) {
+                            parent.added_data.is_visible = false;
                         }
+                    }
+                }
+
+                // Hide children recursively
+                const kids = (unionNode as any).children ? (unionNode as any).children() : [];
+                if (kids) {
+                    for (let childNode of kids) {
+                        childNode.added_data.is_visible = false;
+                        this.hideDescendants(childNode); // Recurse
                     }
                 }
             }
