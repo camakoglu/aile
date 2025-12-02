@@ -5,6 +5,7 @@ import { UPLOAD_SCRIPT_URL, COLUMN_MAPPING } from './config';
 import { uploadPhoto } from './image';
 import { pendingChildPhoto, setPendingChildPhoto } from './state';
 import { get_name } from '../../components/Tree/dagWithFamilyData';
+import { getNextId } from '../../services/data/sheetLoader';
 
 export async function saveData(node: D3Node, updates: any) {
     const statusEl = document.getElementById('save-status');
@@ -180,6 +181,7 @@ export async function submitNewChild(node: D3Node) {
 
     // 4. Add System Fields to Updates
     updates[COLUMN_MAPPING['gen_col']] = childGen;
+    updates[COLUMN_MAPPING['id']] = getNextId(); // Add next ID
 
     // Determine mother and father based on gender
     const anchorGender = anchorNode.gender || 'E';
@@ -342,6 +344,7 @@ export async function submitNewSpouse(node: D3Node) {
     updates[COLUMN_MAPPING['father']] = "";
     updates[COLUMN_MAPPING['mother']] = "";
     updates[COLUMN_MAPPING['note']] = (updates[COLUMN_MAPPING['note']] ? updates[COLUMN_MAPPING['note']] + ", " : "") + "is_spouse:true";
+    updates[COLUMN_MAPPING['id']] = getNextId(); // Add next ID
 
     // 4. Send Request
     statusEl.innerText = "Ekleniyor...";

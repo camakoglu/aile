@@ -36,6 +36,7 @@ const COL_IMAGE_PATH = 8;
 const COL_MARRIAGE = 9;
 const COL_GENDER = 10;
 const COL_NOTE = 11;
+const COL_ID = 12;
 
 // --- Helpers ---
 
@@ -63,6 +64,17 @@ function convertDriveLink(url: string): string {
     return url;
 }
 
+// Track highest ID for generating new IDs
+let highestId = 0;
+
+export function getNextId(): number {
+    return ++highestId;
+}
+
+export function getHighestId(): number {
+    return highestId;
+}
+
 export function processSheetData(rows: string[][]): FamilyData {
     console.log("Processing " + rows.length + " data rows with Zod validation.");
 
@@ -75,7 +87,9 @@ export function processSheetData(rows: string[][]): FamilyData {
     const genMap: { [key: number]: string } = {};
     const spouseMap: { [key: number]: string | null } = {};
     const spouseNameMap: { [key: number]: { [key: string]: string } } = {};
-    const existingIds = new Set<string>();
+
+    // Reset highest ID
+    highestId = 0;
 
     function getUnion(p1: string, p2: string | null) {
         const uKey = [p1, p2 || "unknown"].sort().join("_");
@@ -95,24 +109,6 @@ export function processSheetData(rows: string[][]): FamilyData {
         return "U";
     }
 
-    function generateStableId(name: string, surname: string, birthDate: string, index: number): string {
-        const slug = (str: string) => str.toLowerCase().replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c').replace(/[^a-z0-9]/g, '');
-        let base = `${slug(name)}_${slug(surname)}`;
-        if (birthDate) base += `_${slug(birthDate)}`;
-
-        // If base is empty (e.g. empty row), fallback to index
-        if (base === "_") base = `row_${index}`;
-
-        let id = base;
-        let counter = 1;
-        while (existingIds.has(id)) {
-            id = `${base}_${counter}`;
-            counter++;
-        }
-        existingIds.add(id);
-        return id;
-    }
-
     rows.forEach((row, index) => {
         // Basic row validation
         if (row.length === 0 || clean(row[COL_GEN]) === "") return;
@@ -125,7 +121,21 @@ export function processSheetData(rows: string[][]): FamilyData {
         const lastName = clean(row[COL_SURNAME]);
         const birthDate = clean(row[COL_BIRTH_DATE]);
 
-        const id = generateStableId(firstName, lastName, birthDate, index);
+        // Read ID from column M, or generate next ID if not present
+        let numericId: number;
+        const idFromSheet = clean(row[COL_ID]);
+        if (idFromSheet && !isNaN(parseInt(idFromSheet, 10))) {
+            numericId = parseInt(idFromSheet, 10);
+            if (numericId > highestId) {
+                highestId = numericId;
+            }
+        } else {
+            // No ID in sheet, generate one (for backward compatibility or when adding manually)
+            numericId = ++highestId;
+            console.warn(`Row ${index + 2}: No ID found, assigning ID ${numericId}`);
+        }
+
+        const id = `mem_${numericId}`;
 
         let fullName = firstName;
         if (lastName) fullName += " " + lastName;
@@ -136,6 +146,7 @@ export function processSheetData(rows: string[][]): FamilyData {
         // Construct raw member object
         const rawMember = {
             id,
+            numeric_id: numericId,
             name: fullName,
             first_name: firstName,
             last_name: lastName || undefined,

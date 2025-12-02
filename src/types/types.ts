@@ -1,5 +1,6 @@
 export interface Member {
     id: string;
+    numeric_id?: number; // ID from column M
     first_name?: string;
     last_name?: string;
     birth_date?: string;
