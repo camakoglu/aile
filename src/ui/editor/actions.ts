@@ -475,50 +475,186 @@ export async function deleteChild(node: D3Node) {
     }
 }
 
-export async function submitMoveChild(node: D3Node, newParentId: string, newSpouseName: string) {
+export async function submitMoveChild(
+    node: D3Node,
+    newParentId: string | null,
+    newSpouseName: string,
+    flow: 'spouse' | 'primary',
+    currentPrimaryParent?: any
+) {
     const statusEl = document.getElementById('move-status');
-    if (statusEl) {
-        statusEl.innerText = "Taşınıyor...";
-        statusEl.style.color = "orange";
-    }
-
     const familyData = store.getState().familyData;
-    const newParent = familyData?.members[newParentId];
 
-    if (!newParent) {
-        alert("Seçilen ebeveyn bulunamadı.");
-        return;
-    }
-
-    const updates: any = {};
-
-    if (newParent.gender === 'K') {
-        updates[COLUMN_MAPPING['mother']] = newParent.first_name;
-        updates[COLUMN_MAPPING['father']] = newSpouseName || "";
-    } else {
-        updates[COLUMN_MAPPING['father']] = newParent.first_name;
-        updates[COLUMN_MAPPING['mother']] = newSpouseName || "";
-    }
-
-    try {
-        await saveData(node, updates);
-
+    if (flow === 'spouse') {
+        // Simple spouse change - just update column D or E
         if (statusEl) {
-            statusEl.innerText = "Başarıyla taşındı! Sayfayı yenileyin.";
-            statusEl.style.color = "green";
+            statusEl.innerText = "Güncelleniyor...";
+            statusEl.style.color = "orange";
         }
-        alert("Kişi taşındı. Lütfen sayfayı yenileyin.");
 
-        setTimeout(() => {
-            const sidebar = document.getElementById('family-sidebar');
-            if (sidebar) sidebar.classList.remove('active');
-        }, 1000);
+        if (!currentPrimaryParent) {
+            alert("Ana ebeveyn bilgisi bulunamadı.");
+            return;
+        }
 
-    } catch (e: any) {
-        console.error(e);
+        const updates: any = {};
+
+        // Determine which column to update based on primary parent's gender
+        if (currentPrimaryParent.gender === 'E') {
+            // Primary is father, update mother column
+            updates[COLUMN_MAPPING['mother']] = newSpouseName || "";
+        } else {
+            // Primary is mother, update father column
+            updates[COLUMN_MAPPING['father']] = newSpouseName || "";
+        }
+
+        try {
+            await saveData(node, updates);
+
+            if (statusEl) {
+                statusEl.innerText = "Eş bilgisi güncellendi! Sayfayı yenileyin.";
+                statusEl.style.color = "green";
+            }
+            alert("Eş bilgisi güncellendi. Lütfen sayfayı yenileyin.");
+
+            setTimeout(() => {
+                const sidebar = document.getElementById('family-sidebar');
+                if (sidebar) sidebar.classList.remove('active');
+            }, 1000);
+
+        } catch (e: any) {
+            console.error(e);
+            if (statusEl) {
+                statusEl.innerText = "Hata: " + e.message;
+                statusEl.style.color = "red";
+            }
+        }
+
+    } else {
+        // Primary parent change - delete and re-add row
         if (statusEl) {
-            statusEl.innerText = "Hata: " + e.message;
-            statusEl.style.color = "red";
+            statusEl.innerText = "Taşınıyor...";
+            statusEl.style.color = "orange";
+        }
+
+        const newParent = familyData?.members[newParentId!];
+
+        if (!newParent) {
+            alert("Seçilen ebeveyn bulunamadı.");
+            return;
+        }
+
+        const memberData = (node.added_data as any).input;
+        if (!memberData || !memberData.row_index) {
+            alert("Satır bilgisi bulunamadı.");
+            return;
+        }
+
+        if (!newParent.row_index || newParent.gen === undefined) {
+            alert("Yeni ebeveyn bilgisi eksik.");
+            return;
+        }
+
+        const currentRow = memberData.row_index;
+
+        // Build row map to find insertion point
+        const rowMap = new Map<number, any>();
+        Object.values(familyData.members).forEach((m: any) => {
+            if (m.row_index) rowMap.set(m.row_index, m);
+        });
+
+        // Calculate insertion point (after new parent and their spouses/children)
+        let insertAfterRow = newParent.row_index;
+        let checkRow = newParent.row_index + 1;
+
+        while (true) {
+            const nextMem = rowMap.get(checkRow);
+            if (!nextMem) break;
+
+            if (nextMem.is_spouse) {
+                insertAfterRow = checkRow;
+                checkRow++;
+                continue;
+            }
+
+            if (nextMem.gen !== undefined && nextMem.gen > newParent.gen) {
+                insertAfterRow = checkRow;
+                checkRow++;
+                continue;
+            }
+            break;
+        }
+
+        const childGen = newParent.gen + 1;
+
+        // Prepare the row data for the new position
+        const updates: any = {};
+        updates[COLUMN_MAPPING['gen_col']] = childGen;
+        updates[COLUMN_MAPPING['first_name']] = memberData.first_name || "";
+        updates[COLUMN_MAPPING['last_name']] = memberData.last_name || "";
+        updates[COLUMN_MAPPING['birth_date']] = memberData.birth_date || "";
+        updates[COLUMN_MAPPING['birthplace']] = memberData.birthplace || "";
+        updates[COLUMN_MAPPING['death_date']] = memberData.death_date || "";
+        updates[COLUMN_MAPPING['image_path']] = memberData.image_path || "";
+        updates[COLUMN_MAPPING['marriage']] = memberData.marriage || "";
+        updates[COLUMN_MAPPING['gender']] = memberData.gender || "";
+        updates[COLUMN_MAPPING['note']] = memberData.note || "";
+        updates[COLUMN_MAPPING['id']] = memberData.numeric_id || getNextId();
+
+        // Set new parent fields
+        if (newParent.gender === 'K') {
+            updates[COLUMN_MAPPING['mother']] = newParent.first_name;
+            updates[COLUMN_MAPPING['father']] = newSpouseName || "";
+        } else {
+            updates[COLUMN_MAPPING['father']] = newParent.first_name;
+            updates[COLUMN_MAPPING['mother']] = newSpouseName || "";
+        }
+
+        try {
+            // Step 1: Delete current row
+            const deletePayload = {
+                action: "deleteRow",
+                row: currentRow
+            };
+
+            await fetch(UPLOAD_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(deletePayload)
+            });
+
+            // Step 2: Add new row at correct position
+            const addPayload = {
+                action: "addChild",
+                row: insertAfterRow,
+                updates: updates
+            };
+
+            await fetch(UPLOAD_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(addPayload)
+            });
+
+            if (statusEl) {
+                statusEl.innerText = "Başarıyla taşındı! Sayfayı yenileyin.";
+                statusEl.style.color = "green";
+            }
+            alert("Kişi taşındı. Lütfen sayfayı yenileyin.");
+
+            setTimeout(() => {
+                const sidebar = document.getElementById('family-sidebar');
+                if (sidebar) sidebar.classList.remove('active');
+            }, 1000);
+
+        } catch (e: any) {
+            console.error(e);
+            if (statusEl) {
+                statusEl.innerText = "Hata: " + e.message;
+                statusEl.style.color = "red";
+            }
         }
     }
 }
