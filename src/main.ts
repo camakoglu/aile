@@ -206,9 +206,10 @@ async function init() {
                 }
             }
 
-            // Only restore if at least 50% of saved nodes exist (indicates compatible state)
-            const validRatio = validNodeCount / savedVisibleNodes!.size;
-            if (validRatio >= 0.5 && validNodeCount > 1) {
+            // Only restore if we have at least some matching nodes
+            // We used to require 50%, but this causes full reset when switching to Patrilineal mode
+            // (where many nodes are filtered out). Now we accept any match > 0.
+            if (validNodeCount > 0) {
                 console.log(`Restoring visibility: ${validNodeCount}/${savedVisibleNodes!.size} nodes exist in current DAG`);
 
                 // Restore visibility from explicit state
@@ -253,8 +254,14 @@ async function init() {
                     }
                 }
             } else {
-                console.warn(`Skipping visibility restoration: only ${validNodeCount}/${savedVisibleNodes!.size} nodes exist (${(validRatio * 100).toFixed(0)}%). Using default view.`);
+                console.warn(`Skipping visibility restoration: only ${validNodeCount}/${savedVisibleNodes!.size} nodes exist. Using default view.`);
                 // Don't restore - trust default from reset_dags()
+
+                // Clear invalid state to prevent future issues
+                try {
+                    localStorage.removeItem('soyagaci_visible_nodes');
+                    localStorage.removeItem('soyagaci_view_transform');
+                } catch (e) { }
             }
         }
         // Otherwise, trust the default visibility set by reset_dags() (root + children)
