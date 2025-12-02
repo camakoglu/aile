@@ -213,84 +213,170 @@ export function showMoveChildForm(node: D3Node) {
 
     if (!detailsEl || !imageEl || !titleEl) return;
 
-    // Set Title
     titleEl.innerText = "Ebeveyn Değiştir";
-
-    // Clear Details
     detailsEl.innerHTML = "";
 
-    // Get All Potential Parents (Heads of Families)
     const familyData = store.getState().familyData;
-    const potentialParents: any[] = [];
+    const memberData = (node.added_data as any).input;
+
+    // Determine current primary parent
+    let currentPrimaryParent: any = null;
 
     if (familyData && familyData.members) {
+        const fatherName = memberData?.father;
+        const motherName = memberData?.mother;
+
+        for (const [, member] of Object.entries(familyData.members)) {
+            const m = member as any;
+            if (!m.is_spouse) {
+                if ((m.first_name === fatherName && m.gender === 'E') ||
+                    (m.first_name === motherName && m.gender === 'K')) {
+                    currentPrimaryParent = m;
+                    break;
+                }
+            }
+        }
+    }
+
+    const container = document.createElement("div");
+    container.className = "edit-form";
+
+    // Radio buttons for flow selection
+    const flowGroup = document.createElement("div");
+    flowGroup.style.marginBottom = "20px";
+    flowGroup.innerHTML = `
+        <label style="display:block; margin-bottom:10px; font-weight:bold;">Ne yapmak istiyorsunuz?</label>
+        <div style="margin-bottom:8px;">
+            <input type="radio" id="change-spouse" name="move-flow" value="spouse" checked>
+            <label for="change-spouse" style="margin-left:5px;">Sadece eş ismini değiştir</label>
+        </div>
+        <div>
+            <input type="radio" id="change-primary" name="move-flow" value="primary">
+            <label for="change-primary" style="margin-left:5px;">Ana ebeveynini değiştir (taşı)</label>
+        </div>
+    `;
+    container.appendChild(flowGroup);
+
+    // Spouse change container
+    const spouseChangeContainer = document.createElement("div");
+    spouseChangeContainer.id = "spouse-change-container";
+
+    if (currentPrimaryParent) {
+        const parentInfo = document.createElement("div");
+        parentInfo.style.marginBottom = "10px";
+        parentInfo.innerHTML = `<strong>Ana Ebeveyn:</strong> ${currentPrimaryParent.first_name} ${currentPrimaryParent.last_name || ''}`;
+        spouseChangeContainer.appendChild(parentInfo);
+    }
+
+    const spouseSelectGroup = document.createElement("div");
+    spouseSelectGroup.className = "info-row";
+    spouseSelectGroup.innerHTML = `<label style="display:block; margin-bottom:5px; font-weight:bold;">Yeni Eş:</label>`;
+
+    const spouseOnlySelect = document.createElement("select");
+    spouseOnlySelect.className = "sidebar-input";
+    spouseOnlySelect.id = "spouse-only-select";
+    spouseOnlySelect.innerHTML = `<option value="">(Yok / Bilinmiyor)</option>`;
+
+    if (familyData && familyData.members && currentPrimaryParent) {
         Object.values(familyData.members).forEach((m: any) => {
-            // Filter: Must not be self, must not be a spouse (usually heads are not spouses)
+            if (m.is_spouse && m.gen === currentPrimaryParent.gen) {
+                const option = document.createElement("option");
+                option.value = m.first_name;
+                option.innerText = `${m.first_name} ${m.last_name || ''}`;
+                spouseOnlySelect.appendChild(option);
+            }
+        });
+    }
+
+    spouseSelectGroup.appendChild(spouseOnlySelect);
+    spouseChangeContainer.appendChild(spouseSelectGroup);
+    container.appendChild(spouseChangeContainer);
+
+    // Primary parent change container
+    const primaryChangeContainer = document.createElement("div");
+    primaryChangeContainer.id = "primary-change-container";
+    primaryChangeContainer.style.display = "none";
+
+    const potentialParents: any[] = [];
+    if (familyData && familyData.members) {
+        Object.values(familyData.members).forEach((m: any) => {
             if (m.id !== node.data && !m.is_spouse) {
                 potentialParents.push(m);
             }
         });
     }
+    potentialParents.sort((a, b) => (a.first_name + " " + (a.last_name || "")).localeCompare(b.first_name + " " + (b.last_name || "")));
 
-    // Sort by name
-    potentialParents.sort((a, b) => (a.first_name + " " + a.last_name).localeCompare(b.first_name + " " + b.last_name));
+    const primaryParentGroup = document.createElement("div");
+    primaryParentGroup.className = "info-row";
+    primaryParentGroup.innerHTML = `<label style="display:block; margin-bottom:5px; font-weight:bold;">Yeni Ana Ebeveyn:</label>`;
 
-    // Create Form
-    const container = document.createElement("div");
-    container.className = "edit-form";
-
-    // Parent Dropdown
-    const parentGroup = document.createElement("div");
-    parentGroup.className = "info-row";
-    parentGroup.innerHTML = `<label style="display:block; margin-bottom:5px; font-weight:bold;">Yeni Ebeveyn (Baba/Baş):</label>`;
-
-    const parentSelect = document.createElement("select");
-    parentSelect.className = "sidebar-input";
-    parentSelect.innerHTML = `<option value="" disabled selected>Seçiniz...</option>`;
+    const primaryParentSelect = document.createElement("select");
+    primaryParentSelect.className = "sidebar-input";
+    primaryParentSelect.id = "primary-parent-select";
+    primaryParentSelect.innerHTML = `<option value="" disabled selected>Seçiniz...</option>`;
 
     potentialParents.forEach(p => {
         const option = document.createElement("option");
-        option.value = p.id; // mem_X
-        option.innerText = `${p.first_name} ${p.last_name} (${p.birth_date || "?"})`;
-        parentSelect.appendChild(option);
+        option.value = p.id;
+        option.innerText = `${p.first_name} ${p.last_name || ''} (${p.birth_date || "?"})`;
+        primaryParentSelect.appendChild(option);
     });
 
-    parentGroup.appendChild(parentSelect);
-    container.appendChild(parentGroup);
+    primaryParentGroup.appendChild(primaryParentSelect);
+    primaryChangeContainer.appendChild(primaryParentGroup);
 
-    // Spouse Dropdown (Dynamic)
-    const spouseGroup = document.createElement("div");
-    spouseGroup.className = "info-row";
-    spouseGroup.style.marginTop = "15px";
-    spouseGroup.innerHTML = `<label style="display:block; margin-bottom:5px; font-weight:bold;">Eş (Anne):</label>`;
+    const newSpouseGroup = document.createElement("div");
+    newSpouseGroup.className = "info-row";
+    newSpouseGroup.style.marginTop = "15px";
+    newSpouseGroup.innerHTML = `<label style="display:block; margin-bottom:5px; font-weight:bold;">Eş:</label>`;
 
-    const spouseSelect = document.createElement("select");
-    spouseSelect.className = "sidebar-input";
-    spouseSelect.disabled = true;
-    spouseSelect.innerHTML = `<option value="" selected>Önce Ebeveyn Seçin</option>`;
+    const newSpouseSelect = document.createElement("select");
+    newSpouseSelect.className = "sidebar-input";
+    newSpouseSelect.id = "new-spouse-select";
+    newSpouseSelect.disabled = true;
+    newSpouseSelect.innerHTML = `<option value="" selected>Önce Ana Ebeveyn Seçin</option>`;
 
-    spouseGroup.appendChild(spouseSelect);
-    container.appendChild(spouseGroup);
+    newSpouseGroup.appendChild(newSpouseSelect);
+    primaryChangeContainer.appendChild(newSpouseGroup);
 
-    // Parent Change Listener
-    parentSelect.onchange = () => {
-        // const selectedParentId = parentSelect.value; // Unused
-        spouseSelect.innerHTML = `<option value="">(Yok / Bilinmiyor)</option>`;
-        spouseSelect.disabled = false;
+    primaryParentSelect.onchange = () => {
+        const selectedParentId = primaryParentSelect.value;
+        newSpouseSelect.innerHTML = `<option value="">(Yok / Bilinmiyor)</option>`;
+        newSpouseSelect.disabled = false;
 
-        if (familyData && familyData.members) {
-            Object.values(familyData.members).forEach((m: any) => {
-                if (m.is_spouse) {
-                    const option = document.createElement("option");
-                    option.value = m.first_name; // We store Name in father/mother fields
-                    option.innerText = `${m.first_name} ${m.last_name}`;
-                    spouseSelect.appendChild(option);
-                }
-            });
+        if (familyData && familyData.members && selectedParentId) {
+            const selectedParent = familyData.members[selectedParentId] as any;
+            if (selectedParent) {
+                Object.values(familyData.members).forEach((m: any) => {
+                    if (m.is_spouse && m.gen === selectedParent.gen) {
+                        const option = document.createElement("option");
+                        option.value = m.first_name;
+                        option.innerText = `${m.first_name} ${m.last_name || ''}`;
+                        newSpouseSelect.appendChild(option);
+                    }
+                });
+            }
         }
     };
 
+    container.appendChild(primaryChangeContainer);
     detailsEl.appendChild(container);
+
+    // Radio button handler
+    const radioButtons = container.querySelectorAll('input[name="move-flow"]');
+    radioButtons.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const value = (e.target as HTMLInputElement).value;
+            if (value === 'spouse') {
+                spouseChangeContainer.style.display = 'block';
+                primaryChangeContainer.style.display = 'none';
+            } else {
+                spouseChangeContainer.style.display = 'none';
+                primaryChangeContainer.style.display = 'block';
+            }
+        });
+    });
 
     // Buttons
     const btnContainer = document.createElement("div");
@@ -302,31 +388,35 @@ export function showMoveChildForm(node: D3Node) {
     btnCancel.className = "action-btn btn-secondary";
     btnCancel.innerText = "İptal";
     btnCancel.onclick = () => {
-        if (typeof currentEditedNode !== 'undefined') {
-            const sidebar = document.getElementById('family-sidebar');
-            if (sidebar) sidebar.classList.remove('active');
-        }
+        const sidebar = document.getElementById('family-sidebar');
+        if (sidebar) sidebar.classList.remove('active');
     };
 
     const btnConfirm = document.createElement("button");
     btnConfirm.className = "action-btn btn-success";
-    btnConfirm.innerText = "✅ Taşı";
+    btnConfirm.innerText = "✅ Güncelle";
     btnConfirm.onclick = () => {
-        const parentId = parentSelect.value;
-        const spouseName = spouseSelect.value;
+        const selectedFlow = (container.querySelector('input[name="move-flow"]:checked') as HTMLInputElement)?.value;
 
-        if (!parentId) {
-            alert("Lütfen bir ebeveyn seçin.");
-            return;
+        if (selectedFlow === 'spouse') {
+            const newSpouseName = spouseOnlySelect.value;
+            submitMoveChild(node, null, newSpouseName, 'spouse', currentPrimaryParent);
+        } else {
+            const newPrimaryParentId = primaryParentSelect.value;
+            const newSpouseName = newSpouseSelect.value;
+
+            if (!newPrimaryParentId) {
+                alert("Lütfen yeni ana ebeveyn seçin.");
+                return;
+            }
+            submitMoveChild(node, newPrimaryParentId, newSpouseName, 'primary', null);
         }
-        submitMoveChild(node, parentId, spouseName);
     };
 
     btnContainer.appendChild(btnCancel);
     btnContainer.appendChild(btnConfirm);
     detailsEl.appendChild(btnContainer);
 
-    // Status
     const status = document.createElement("div");
     status.id = "move-status";
     status.style.marginTop = "10px";
