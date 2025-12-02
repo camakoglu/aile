@@ -11,6 +11,7 @@ export interface Member {
     gen?: number;
     persistentId?: string;
     name?: string;
+    row_index?: number;
     [key: string]: any; // Allow other properties for now
 }
 
