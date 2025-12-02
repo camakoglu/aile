@@ -29,13 +29,24 @@ export async function uploadPhoto(file: File, node: D3Node) {
     }
 
     try {
-        if (!node || !node.data.startsWith("mem_")) {
+        if (!node) {
             throw new Error("Lütfen fotoğraf yüklemek için bir kişi seçin.");
         }
 
+        const memberData = (node.added_data as any).input;
+        let sheetRow: number;
+
+        if (memberData && memberData.row_index) {
+            sheetRow = memberData.row_index;
+        } else if (node.data.startsWith("mem_")) {
+            // Fallback for old IDs
+            const memberId = parseInt(node.data.split("_")[1]);
+            sheetRow = memberId + 2;
+        } else {
+            throw new Error("Kişi verisi veya satır numarası bulunamadı.");
+        }
+
         const base64Data = await getBase64(file);
-        const memberId = parseInt(node.data.split("_")[1]); // Extract member index from "mem_X"
-        const sheetRow = memberId + 2; // +2 for 1-based indexing and header row
 
         const payload = {
             fileName: file.name,
@@ -64,7 +75,9 @@ export async function uploadPhoto(file: File, node: D3Node) {
         }
 
         // 2. Update Node Data
-        (node.added_data as any).input.image_path = temporaryImageUrl;
+        if ((node.added_data as any).input) {
+            (node.added_data as any).input.image_path = temporaryImageUrl;
+        }
 
         // 3. Update Tree Node Image
         d3.selectAll<SVGGElement, D3Node>("g.node")

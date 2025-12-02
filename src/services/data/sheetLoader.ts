@@ -147,68 +147,68 @@ export function processSheetData(rows: string[][]): FamilyData {
             note: clean(row[COL_NOTE]) || undefined,
             gender: normalizeGender(clean(row[COL_GENDER])),
             gen: undefined, // Placeholder
-            is_spouse: (genType === "E")
-        };
+            is_spouse: (genType === "E"),
+            row_index: index + 2 // Store 1-based row index (accounting for header)
 
         // Validate with Zod
         const result = MemberSchema.safeParse(rawMember);
 
-        if (!result.success) {
-            console.warn(`Row ${index + 2}: Validation failed`, result.error.format());
-            // We can choose to skip or use a fallback. For now, we'll try to use what we have but log it.
-            // In a strict mode, we might want to skip.
+            if(!result.success) {
+        console.warn(`Row ${index + 2}: Validation failed`, result.error.format());
+        // We can choose to skip or use a fallback. For now, we'll try to use what we have but log it.
+        // In a strict mode, we might want to skip.
+    }
+
+    // Use the validated data or fall back to raw (if partial failure is acceptable)
+    // For now, we trust our construction but Zod helps catch unexpected types if we change logic.
+    members[id] = rawMember as Member;
+
+    // Logic for linking (same as before, but cleaner)
+    const fatherNameData = clean(row[COL_FATHER]);
+    const motherNameData = clean(row[COL_MOTHER]);
+
+    if (genType === "E") {
+        if (!lastRegularMember) {
+            console.warn("Row " + (index + 2) + ": Spouse 'E' found but no partner exists above.");
+            return;
         }
+        const partnerID = lastRegularMember;
+        const partnerGen = lastRegularMemberGen;
+        members[id].gen = partnerGen;
+        spouseMap[partnerGen] = id;
+        if (!spouseNameMap[partnerGen]) spouseNameMap[partnerGen] = {};
+        spouseNameMap[partnerGen][firstName] = id;
+        getUnion(partnerID, id);
+    } else {
+        const gen = genType as number;
+        members[id].gen = gen;
+        lastRegularMember = id;
+        lastRegularMemberGen = gen;
+        genMap[gen] = id;
+        spouseMap[gen] = null;
+        spouseNameMap[gen] = {};
 
-        // Use the validated data or fall back to raw (if partial failure is acceptable)
-        // For now, we trust our construction but Zod helps catch unexpected types if we change logic.
-        members[id] = rawMember as Member;
-
-        // Logic for linking (same as before, but cleaner)
-        const fatherNameData = clean(row[COL_FATHER]);
-        const motherNameData = clean(row[COL_MOTHER]);
-
-        if (genType === "E") {
-            if (!lastRegularMember) {
-                console.warn("Row " + (index + 2) + ": Spouse 'E' found but no partner exists above.");
-                return;
+        if (gen > 1) {
+            const parentID = genMap[gen - 1];
+            let spouseID: string | null = null;
+            if (fatherNameData && spouseNameMap[gen - 1]?.[fatherNameData]) {
+                spouseID = spouseNameMap[gen - 1][fatherNameData];
+            } else if (motherNameData && spouseNameMap[gen - 1]?.[motherNameData]) {
+                spouseID = spouseNameMap[gen - 1][motherNameData];
+            } else {
+                spouseID = spouseMap[gen - 1];
             }
-            const partnerID = lastRegularMember;
-            const partnerGen = lastRegularMemberGen;
-            members[id].gen = partnerGen;
-            spouseMap[partnerGen] = id;
-            if (!spouseNameMap[partnerGen]) spouseNameMap[partnerGen] = {};
-            spouseNameMap[partnerGen][firstName] = id;
-            getUnion(partnerID, id);
-        } else {
-            const gen = genType as number;
-            members[id].gen = gen;
-            lastRegularMember = id;
-            lastRegularMemberGen = gen;
-            genMap[gen] = id;
-            spouseMap[gen] = null;
-            spouseNameMap[gen] = {};
 
-            if (gen > 1) {
-                const parentID = genMap[gen - 1];
-                let spouseID: string | null = null;
-                if (fatherNameData && spouseNameMap[gen - 1]?.[fatherNameData]) {
-                    spouseID = spouseNameMap[gen - 1][fatherNameData];
-                } else if (motherNameData && spouseNameMap[gen - 1]?.[motherNameData]) {
-                    spouseID = spouseNameMap[gen - 1][motherNameData];
-                } else {
-                    spouseID = spouseMap[gen - 1];
-                }
-
-                if (parentID) {
-                    const uID = getUnion(parentID, spouseID);
-                    links.push([uID, id]);
-                }
+            if (parentID) {
+                const uID = getUnion(parentID, spouseID);
+                links.push([uID, id]);
             }
         }
-    });
+    }
+});
 
-    const startID = Object.keys(members)[0];
-    return { start: startID, members, links };
+const startID = Object.keys(members)[0];
+return { start: startID, members, links };
 }
 
 export async function loadFromGoogleSheet(url: string): Promise<FamilyData> {
