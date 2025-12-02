@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Çamakoğlu Sülalesi</title>
+    <link rel="icon" type="image/ico" href="/assets/favicon-BR9xp4OX.ico">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        /* Modern Modal Styles */
+        #crop-modal {
+            display: none;
+            position: fixed;
+            z-index: 10000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.6);
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+
+        #crop-modal-content {
+            background: rgba(255, 255, 255, 0.95);
+            margin: auto;
+            padding: 32px;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 90%;
+            max-width: 700px;
+            max-height: 90%;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        #crop-image-container {
+            max-height: 60vh;
+            overflow: hidden;
+            margin-bottom: 24px;
+            border-radius: 16px;
+            background: #f1f5f9;
+        }
+
+        #crop-image-container img {
+            max-width: 100%;
+            border-radius: 16px;
+        }
+
+        .crop-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .crop-actions button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+        }
+
+        #btn-cancel-crop {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        #btn-cancel-crop:hover {
+            background: #cbd5e0;
+        }
+
+        #btn-confirm-crop {
+            background: #10b981;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+        }
+
+        #btn-confirm-crop:hover {
+            background: #059669;
+            box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3);
+        }
+    </style>
+  <script type="module" crossorigin src="/assets/index-YqrYoDFy.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BOGasgno.css">
+</head>
+
+<body>
+    <!-- Global Patrilineal Toggle Button -->
+    <div style="position: fixed; top: 24px; right: 24px; z-index: 1000; display: flex; gap: 12px;">
+        <button id="share-btn" class="glass-btn">
+            <span style="font-size: 1.2em;">📤</span>
+            <span>Paylaş</span>
+        </button>
+        <button id="patrilineal-global-toggle" class="glass-btn">
+            <span id="toggle-icon" style="font-size: 1.2em;">👨‍👦</span>
+            <span id="toggle-text">Sadece Erkek Soyu</span>
+        </button>
+    </div>
+
+    <!-- Tree Container (SVG goes here) -->
+    <div id="tree-container" style="width:100%; height:100vh;"></div>
+
+    <!-- STATIC SIDEBAR STRUCTURE -->
+    <aside id="family-sidebar">
+        <div class="sidebar-header">
+            <h2 id="sidebar-title">Kişi Adı</h2>
+            <button class="close-btn">✕</button>
+        </div>
+
+        <div class="sidebar-content">
+            <!-- Profile Image -->
+            <div class="sidebar-section photo-section" style="text-align: center;">
+                <div style="position: relative; display: inline-block;">
+                    <img id="sidebar-image" src="" alt="Fotoğraf"
+                        style="max-width: 100%; max-height: 220px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: none; cursor: pointer; transition: all 0.3s ease;">
+                    <button id="delete-photo-btn"
+                        style="display: none; position: absolute; top: 8px; right: 8px; background: #c84b4b; color: white; border: none; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 20px; font-weight: bold; line-height: 1; padding: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: all 0.2s ease;">×</button>
+                </div>
+                <input type="file" id="image-upload-input" accept="image/*" style="display: none;">
+            </div>
+
+            <!-- Dynamic Details -->
+            <div class="sidebar-section">
+                <div id="sidebar-details"></div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="sidebar-section" style="display: flex; flex-direction: column; gap: 10px;">
+                <button id="btn-parents" class="action-btn btn-primary">Ataları Göster (Anne/Baba)</button>
+                <button id="btn-children" class="action-btn btn-primary">Torunları Göster (Çocuklar)</button>
+            </div>
+
+
+            <!-- Meta -->
+            <div class="sidebar-section">
+                <button id="btn-open-sheet" class="action-btn btn-secondary">Google Tablosunu
+                    Aç</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- CROP MODAL -->
+    <div id="crop-modal">
+        <div id="crop-modal-content">
+            <h3>Fotoğrafı Kırp</h3>
+            <div id="crop-image-container">
+                <img id="image-to-crop" src="">
+            </div>
+            <div class="crop-actions">
+                <button id="btn-cancel-crop" class="action-btn btn-secondary">İptal</button>
+                <button id="btn-confirm-crop" class="action-btn btn-success">✂️ Kırp ve Yükle</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+</body>
+
+</html>
