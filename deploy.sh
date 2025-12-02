@@ -23,6 +23,12 @@ if [ ! -d "dist" ]; then
   exit 1
 fi
 
+# Copy dist to temp location (Git will delete it when switching branches)
+TEMP_DIST="/tmp/soyagaci-deploy-$$"
+echo "💾 Saving build to temp location..."
+mkdir -p "$TEMP_DIST"
+cp -r dist/* "$TEMP_DIST/"
+
 # Switch to gh-pages branch
 echo "📤 Deploying to gh-pages branch..."
 git checkout gh-pages
@@ -32,6 +38,7 @@ CURRENT_BRANCH=$(git branch --show-current)
 if [ "$CURRENT_BRANCH" != "gh-pages" ]; then
   echo "❌ ERROR: Not on gh-pages branch! Aborting to prevent data loss."
   echo "Current branch: $CURRENT_BRANCH"
+  rm -rf "$TEMP_DIST"
   git checkout master
   exit 1
 fi
@@ -41,6 +48,7 @@ echo "This is normal for deployment, but please confirm:"
 read -p "Continue? (yes/no): " -r
 if [[ ! $REPLY =~ ^[Yy]es$ ]]; then
   echo "Deployment cancelled"
+  rm -rf "$TEMP_DIST"
   git checkout master
   exit 0
 fi
@@ -49,8 +57,12 @@ fi
 echo "🗑️  Removing old build files..."
 find . -maxdepth 1 ! -name '.git' ! -name '.' ! -name '..' -exec rm -rf {} +
 
-# Copy new build files
-cp -r dist/* .
+# Copy new build files from temp
+echo "📦 Copying new build files..."
+cp -r "$TEMP_DIST"/* .
+
+# Clean up temp directory
+rm -rf "$TEMP_DIST"
 
 # Add all files
 git add -A
