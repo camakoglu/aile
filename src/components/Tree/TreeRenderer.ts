@@ -10,13 +10,13 @@ export class TreeRenderer {
 
     // Callbacks
     onNodeClick: (node: D3Node, event: any) => void;
-    onNodeDblClick: (node: D3Node, event: any) => void;
+    onNodeDblClick: (node: D3Node) => void;
     onEditClick: (node: D3Node) => void;
 
     constructor(
         g: d3.Selection<SVGGElement, unknown, HTMLElement, any>,
         onNodeClick: (node: D3Node, event: any) => void,
-        onNodeDblClick: (node: D3Node, event: any) => void,
+        onNodeDblClick: (node: D3Node) => void,
         onEditClick: (node: D3Node) => void
     ) {
         this.g = g;
@@ -63,7 +63,7 @@ export class TreeRenderer {
             .on("dblclick", function (event, node) {
                 if (event.defaultPrevented) return;
                 event.stopPropagation(); // Prevent zoom on double click
-                that.onNodeDblClick(node, event);
+                that.onNodeDblClick(node);
             });
 
         // Add a circle as SVG object

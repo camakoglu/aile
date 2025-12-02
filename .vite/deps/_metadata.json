@@ -1,0 +1,25 @@
+{
+  "hash": "7e2cb7ca",
+  "configHash": "2d1be8bb",
+  "lockfileHash": "19129600",
+  "browserHash": "ae5fb258",
+  "optimized": {
+    "d3": {
+      "src": "../../node_modules/d3/src/index.js",
+      "file": "d3.js",
+      "fileHash": "4d794009",
+      "needsInterop": false
+    },
+    "zod": {
+      "src": "../../node_modules/zod/index.js",
+      "file": "zod.js",
+      "fileHash": "a6e16830",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-PZ5AY32C": {
+      "file": "chunk-PZ5AY32C.js"
+    }
+  }
+}

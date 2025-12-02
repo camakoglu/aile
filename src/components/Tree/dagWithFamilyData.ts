@@ -132,17 +132,23 @@ export function get_image_path(node: D3Node): string {
 function get_data_and_xy(dag_1: DagWithFamilyData, dag_2: DagWithFamilyData) {
     // If one of the DAGs are not yet defined, return
     if ((!dag_1) || (!dag_2)) return;
-    let nodes_1 = Array.from(dag_1.nodes());
+
+    // Use a Map for O(1) lookup
+    const nodeMap1 = new Map<string, D3Node>();
+    for (let node of dag_1.nodes()) {
+        nodeMap1.set(node.data, node);
+    }
+
     for (let node_2 of dag_2.nodes()) {
-        let node_1 = nodes_1.find(node => node.data == node_2.data);
+        let node_1 = nodeMap1.get(node_2.data);
         if (!node_1) continue;
-        // Note: Use ux and uy to avoid exception if undefined
-        // Assuming ux/uy are meant to be x/y or stored previous positions
-        // In original code: node_1.ux, node_1.uy. But where are they defined?
-        // They might be undefined, which is handled.
-        // Let's use x and y if ux/uy are not present on type, or cast to any.
-        node_2.x = (node_1 as any).ux || node_1.x;
-        node_2.y = (node_1 as any).uy || node_1.y;
+
+        // Transfer coordinates
+        // Use ux/uy if available (custom preserved state), otherwise standard x/y
+        node_2.x = (node_1 as any).ux !== undefined ? (node_1 as any).ux : node_1.x;
+        node_2.y = (node_1 as any).uy !== undefined ? (node_1 as any).uy : node_1.y;
+
+        // Transfer shared data
         node_2.added_data = node_1.added_data;
     }
 }
