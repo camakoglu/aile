@@ -277,15 +277,30 @@ export function showMoveChildForm(node: D3Node) {
     spouseOnlySelect.id = "spouse-only-select";
     spouseOnlySelect.innerHTML = `<option value="">(Yok / Bilinmiyor)</option>`;
 
-    if (familyData && familyData.members && currentPrimaryParent) {
+    if (familyData && familyData.members && currentPrimaryParent && currentPrimaryParent.row_index) {
+        // Build row map
+        const rowMap = new Map<number, any>();
         Object.values(familyData.members).forEach((m: any) => {
-            if (m.is_spouse && m.gen === currentPrimaryParent.gen) {
-                const option = document.createElement("option");
-                option.value = m.first_name;
-                option.innerText = `${m.first_name} ${m.last_name || ''}`;
-                spouseOnlySelect.appendChild(option);
-            }
+            if (m.row_index) rowMap.set(m.row_index, m);
         });
+
+        // Find spouses: they are rows immediately after parent with is_spouse=true
+        let checkRow = currentPrimaryParent.row_index + 1;
+        while (true) {
+            const nextMem = rowMap.get(checkRow);
+            if (!nextMem) break;
+
+            if (nextMem.is_spouse) {
+                const option = document.createElement("option");
+                option.value = nextMem.first_name;
+                option.innerText = `${nextMem.first_name} ${nextMem.last_name || ''}`;
+                spouseOnlySelect.appendChild(option);
+                checkRow++;
+            } else {
+                // Hit a non-spouse, stop looking
+                break;
+            }
+        }
     }
 
     spouseSelectGroup.appendChild(spouseOnlySelect);
@@ -347,15 +362,30 @@ export function showMoveChildForm(node: D3Node) {
 
         if (familyData && familyData.members && selectedParentId) {
             const selectedParent = familyData.members[selectedParentId] as any;
-            if (selectedParent) {
+            if (selectedParent && selectedParent.row_index) {
+                // Build row map to find spouses
+                const rowMap = new Map<number, any>();
                 Object.values(familyData.members).forEach((m: any) => {
-                    if (m.is_spouse && m.gen === selectedParent.gen) {
-                        const option = document.createElement("option");
-                        option.value = m.first_name;
-                        option.innerText = `${m.first_name} ${m.last_name || ''}`;
-                        newSpouseSelect.appendChild(option);
-                    }
+                    if (m.row_index) rowMap.set(m.row_index, m);
                 });
+
+                // Find spouses: they are rows immediately after parent with is_spouse=true
+                let checkRow = selectedParent.row_index + 1;
+                while (true) {
+                    const nextMem = rowMap.get(checkRow);
+                    if (!nextMem) break;
+
+                    if (nextMem.is_spouse) {
+                        const option = document.createElement("option");
+                        option.value = nextMem.first_name;
+                        option.innerText = `${nextMem.first_name} ${nextMem.last_name || ''}`;
+                        newSpouseSelect.appendChild(option);
+                        checkRow++;
+                    } else {
+                        // Hit a non-spouse, stop looking
+                        break;
+                    }
+                }
             }
         }
     };
