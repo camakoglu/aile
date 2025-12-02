@@ -563,29 +563,43 @@ export async function submitMoveChild(
             if (m.row_index) rowMap.set(m.row_index, m);
         });
 
-        // Calculate insertion point (after new parent and their spouses/children)
+        // Calculate insertion point (after new parent, their spouses, and immediate children only)
         let insertAfterRow = newParent.row_index;
         let checkRow = newParent.row_index + 1;
+        const childGen = newParent.gen + 1;
+
+        console.log(`Moving to parent ${newParent.first_name} at row ${newParent.row_index}, gen ${newParent.gen}`);
 
         while (true) {
             const nextMem = rowMap.get(checkRow);
-            if (!nextMem) break;
+            if (!nextMem) {
+                console.log(`End of sheet at row ${checkRow}`);
+                break;
+            }
+
+            console.log(`Checking row ${checkRow}: ${nextMem.first_name}, gen=${nextMem.gen}, is_spouse=${nextMem.is_spouse}`);
 
             if (nextMem.is_spouse) {
+                console.log(`  -> Spouse, continuing`);
                 insertAfterRow = checkRow;
                 checkRow++;
                 continue;
             }
 
-            if (nextMem.gen !== undefined && nextMem.gen > newParent.gen) {
+            // Only include immediate children (gen = parent.gen + 1)
+            if (nextMem.gen !== undefined && nextMem.gen === childGen) {
+                console.log(`  -> Immediate child, continuing`);
                 insertAfterRow = checkRow;
                 checkRow++;
                 continue;
             }
+
+            // Stop when we hit a different generation
+            console.log(`  -> Different gen, stopping. insertAfterRow=${insertAfterRow}`);
             break;
         }
 
-        const childGen = newParent.gen + 1;
+        console.log(`Final insertion point: after row ${insertAfterRow}`);
 
         // Prepare the row data for the new position
         const updates: any = {};
