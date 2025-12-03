@@ -91,7 +91,6 @@ async function init() {
 
     // UI Elements
     const globalToggle = document.getElementById('patrilineal-global-toggle');
-    const toggleIcon = document.getElementById('toggle-icon');
     const toggleText = document.getElementById('toggle-text');
     const svg = d3.select("#tree-container").append("svg").attr("id", "tree-svg");
 
@@ -118,15 +117,13 @@ async function init() {
 
         if (store.getState().isPatrilineal) {
             displayData = filterPatrilineal(currentFullData);
-            if (globalToggle && toggleIcon && toggleText) {
+            if (globalToggle && toggleText) {
                 globalToggle.style.background = 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
-                toggleIcon.textContent = '👨‍👦‍👦';
                 toggleText.textContent = 'Tüm Soy Ağacı';
             }
         } else {
-            if (globalToggle && toggleIcon && toggleText) {
+            if (globalToggle && toggleText) {
                 globalToggle.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-                toggleIcon.textContent = '👨‍👦';
                 toggleText.textContent = 'Sadece Erkek Soyu';
             }
         }
@@ -399,6 +396,20 @@ async function init() {
     const shareBtn = document.getElementById('share-btn');
     if (shareBtn) {
         shareBtn.addEventListener('click', () => shareCurrentState(store.getState()));
+    }
+
+    const resetViewBtn = document.getElementById('reset-view-btn');
+    if (resetViewBtn) {
+        resetViewBtn.addEventListener('click', () => {
+            // Clear localStorage cache
+            localStorage.clear();
+
+            // Clear URL state
+            window.history.replaceState({}, '', window.location.pathname);
+
+            // Reload the page to reset everything
+            window.location.reload();
+        });
     }
 
     // Note: btn-open-sheet click handler is set dynamically in editor/index.ts
