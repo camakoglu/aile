@@ -19,7 +19,16 @@ initDarkMode();
 async function init() {
     let inputData: FamilyData | null = null;
     try {
-        inputData = await loadFromGoogleSheet(GOOGLE_SHEET_CSV_URL);
+        // Add cache-busting parameter if present in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const nocache = urlParams.get('nocache');
+        let fetchUrl = GOOGLE_SHEET_CSV_URL;
+        if (nocache) {
+            // Add timestamp to Google Sheet URL to bypass cache
+            fetchUrl = `${GOOGLE_SHEET_CSV_URL}&_=${nocache}`;
+        }
+
+        inputData = await loadFromGoogleSheet(fetchUrl);
         localStorage.setItem('soyagaci_cached_data', JSON.stringify(inputData));
     } catch (e) {
         console.warn("Network failed, trying cache...", e);
@@ -404,11 +413,9 @@ async function init() {
             // Clear localStorage cache
             localStorage.clear();
 
-            // Clear URL state
-            window.history.replaceState({}, '', window.location.pathname);
-
-            // Reload the page to reset everything
-            window.location.reload();
+            // Reload with cache-busting parameter to force fresh data fetch
+            const timestamp = Date.now();
+            window.location.href = `${window.location.pathname}?nocache=${timestamp}`;
         });
     }
 
