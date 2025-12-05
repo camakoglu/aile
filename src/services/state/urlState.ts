@@ -55,12 +55,13 @@ export function buildIdMaps(familyData: FamilyData) {
 }
 
 // Encode state to URL-friendly base64 string
-export function encodeState(currentNode: string | null, transform: any, patrilineal: boolean, visibleNodes: Set<string>): string | null {
+export function encodeState(currentNode: string | null, transform: any, patrilineal: boolean, visibleNodes: Set<string>, activeFamilyIds?: Set<string>): string | null {
     const state = {
         n: currentNode ? reverseIdMap.get(currentNode) || null : null,
         t: transform ? { k: transform.k, x: Math.round(transform.x), y: Math.round(transform.y) } : null,
         p: patrilineal ? 1 : 0,
-        v: visibleNodes ? Array.from(visibleNodes).map(id => reverseIdMap.get(id)).filter(Boolean) : []
+        v: visibleNodes ? Array.from(visibleNodes).map(id => reverseIdMap.get(id)).filter(Boolean) : [],
+        f: activeFamilyIds && activeFamilyIds.size > 0 ? Array.from(activeFamilyIds) : []
     };
 
     try {
@@ -97,7 +98,8 @@ export function decodeState(): any {
             currentNode: null as string | null,
             transform: null as { k: number, x: number, y: number } | null,
             patrilineal: false,
-            visibleNodes: new Set<string>()
+            visibleNodes: new Set<string>(),
+            activeFamilyIds: new Set<string>()
         };
 
         // Restore current node
@@ -123,6 +125,13 @@ export function decodeState(): any {
             }
         }
 
+        // Restore active family IDs
+        if (Array.isArray(state.f)) {
+            for (const familyId of state.f) {
+                decoded.activeFamilyIds.add(familyId);
+            }
+        }
+
         return decoded;
     } catch (e) {
         console.warn('Error decoding state from URL, falling back to localStorage:', e);
@@ -142,8 +151,9 @@ export function updateURL(state: any) {
     const visibleNodes = state.visibleNodes;
     const currentNode = state.selectedNodeId || (state.familyData ? state.familyData.start : null);
     const patrilineal = state.isPatrilineal;
+    const activeFamilyIds = state.activeFamilyIds;
 
-    const encoded = encodeState(currentNode, transform, patrilineal, visibleNodes);
+    const encoded = encodeState(currentNode, transform, patrilineal, visibleNodes, activeFamilyIds);
     if (encoded) {
         history.replaceState(null, '', '#' + encoded);
     }

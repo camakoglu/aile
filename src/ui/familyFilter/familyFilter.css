@@ -1,0 +1,339 @@
+/* Family Filter Dropdown Styles */
+
+.family-dropdown {
+  position: relative;
+  display: inline-block;
+  margin-left: 10px;
+}
+
+.family-dropdown-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+}
+
+.family-dropdown-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.family-dropdown-toggle:active {
+  transform: translateY(0);
+}
+
+.family-dropdown-toggle.open {
+  background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+}
+
+.family-dropdown-toggle .icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.family-dropdown-toggle .text {
+  font-weight: 500;
+}
+
+.family-dropdown-toggle .count {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.family-dropdown-toggle .arrow {
+  font-size: 10px;
+  transition: transform 0.2s ease;
+}
+
+.family-dropdown-toggle.open .arrow {
+  transform: rotate(180deg);
+}
+
+/* Dropdown Menu */
+
+.family-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  min-width: 280px;
+  max-width: 360px;
+  max-height: 500px;
+  overflow-y: auto;
+  z-index: 1000;
+  animation: dropdown-slide-in 0.2s ease;
+}
+
+@keyframes dropdown-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.family-dropdown-menu[hidden] {
+  display: none;
+}
+
+/* Dark mode support */
+body.dark-mode .family-dropdown-menu {
+  background: #2d3748;
+  color: #e2e8f0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Header */
+
+.family-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 16px 12px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+body.dark-mode .family-dropdown-header {
+  border-bottom-color: #4a5568;
+}
+
+.family-dropdown-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1a202c;
+}
+
+body.dark-mode .family-dropdown-header h3 {
+  color: #e2e8f0;
+}
+
+.family-dropdown-header .close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: #718096;
+  padding: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.family-dropdown-header .close-btn:hover {
+  background: #f7fafc;
+  color: #1a202c;
+}
+
+body.dark-mode .family-dropdown-header .close-btn:hover {
+  background: #4a5568;
+  color: #e2e8f0;
+}
+
+/* "All Families" Section */
+
+.family-dropdown-all {
+  padding: 12px 16px;
+}
+
+.family-dropdown-all label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 500;
+  color: #2d3748;
+}
+
+body.dark-mode .family-dropdown-all label {
+  color: #cbd5e0;
+}
+
+.family-dropdown-all input[type="checkbox"] {
+  margin-right: 10px;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+}
+
+/* Divider */
+
+.family-dropdown-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 0;
+}
+
+body.dark-mode .family-dropdown-divider {
+  background: #4a5568;
+}
+
+/* Family List */
+
+.family-dropdown-list {
+  padding: 8px 0;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.family-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.family-item:hover {
+  background: #f7fafc;
+}
+
+body.dark-mode .family-item:hover {
+  background: #3a4556;
+}
+
+.family-item input[type="checkbox"] {
+  margin-right: 10px;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.family-item .color-indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  margin-right: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.family-item .family-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d3748;
+  margin-right: 8px;
+}
+
+body.dark-mode .family-item .family-name {
+  color: #cbd5e0;
+}
+
+.family-item .member-count {
+  font-size: 12px;
+  color: #718096;
+  white-space: nowrap;
+}
+
+body.dark-mode .family-item .member-count {
+  color: #a0aec0;
+}
+
+/* Action Buttons */
+
+.family-dropdown-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.family-dropdown-actions button {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  color: #4a5568;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.family-dropdown-actions button:hover {
+  background: #f7fafc;
+  border-color: #cbd5e0;
+  color: #2d3748;
+}
+
+.family-dropdown-actions button:active {
+  transform: scale(0.98);
+}
+
+body.dark-mode .family-dropdown-actions button {
+  background: #3a4556;
+  border-color: #4a5568;
+  color: #cbd5e0;
+}
+
+body.dark-mode .family-dropdown-actions button:hover {
+  background: #4a5568;
+  border-color: #5a6778;
+  color: #e2e8f0;
+}
+
+/* Scrollbar styling */
+
+.family-dropdown-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.family-dropdown-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.family-dropdown-list::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 3px;
+}
+
+.family-dropdown-list::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+body.dark-mode .family-dropdown-list::-webkit-scrollbar-thumb {
+  background: #4a5568;
+}
+
+body.dark-mode .family-dropdown-list::-webkit-scrollbar-thumb:hover {
+  background: #5a6778;
+}
+
+/* Responsive */
+
+@media (max-width: 768px) {
+  .family-dropdown-menu {
+    right: auto;
+    left: 0;
+    min-width: 260px;
+  }
+
+  .family-dropdown-toggle {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .family-dropdown-toggle .text {
+    display: none; /* Hide text on mobile, show only icon and count */
+  }
+}

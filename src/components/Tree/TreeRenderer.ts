@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import { D3Node } from '../../types/types';
 import { is_member } from './dagWithFamilyData';
-import { get_node_size, get_css_class, add_images } from './NodeHelpers';
+import { get_node_size, get_css_class, add_images, getNodeFill, getNodeOpacity, ensureDefs } from './NodeHelpers';
 import { set_multiline } from './LabelHelpers';
 import { LAYOUT_CONSTANTS } from '../../constants/layout';
 
@@ -14,6 +14,11 @@ export class TreeRenderer {
     onNodeDblClick: (node: D3Node) => void;
     onEditClick: (node: D3Node) => void;
 
+    // Family filtering state
+    memberToFamilies: Map<string, string[]> = new Map();
+    familyColors: Map<string, string> = new Map();
+    activeFamilyIds: Set<string> = new Set();
+
     constructor(
         g: d3.Selection<SVGGElement, unknown, HTMLElement, any>,
         onNodeClick: (node: D3Node, event: any) => void,
@@ -24,6 +29,19 @@ export class TreeRenderer {
         this.onNodeClick = onNodeClick;
         this.onNodeDblClick = onNodeDblClick;
         this.onEditClick = onEditClick;
+    }
+
+    /**
+     * Update family filtering state
+     */
+    setFamilyState(
+        memberToFamilies: Map<string, string[]>,
+        familyColors: Map<string, string>,
+        activeFamilyIds: Set<string>
+    ) {
+        this.memberToFamilies = memberToFamilies;
+        this.familyColors = familyColors;
+        this.activeFamilyIds = activeFamilyIds;
     }
 
     draw_nodes(nodes: D3Node[], current_node: D3Node) {
@@ -70,7 +88,17 @@ export class TreeRenderer {
         // Add a circle as SVG object
         circle_group.append("circle")
             .attr("class", get_css_class)
-            .attr("r", node => get_node_size() / (is_member(node) ? 1.0 : 4.0));
+            .attr("r", node => get_node_size() / (is_member(node) ? 1.0 : 4.0))
+            .attr("fill", node => {
+                if (this.familyColors.size === 0) return null; // Use CSS styling
+                const ownerSvg = this.g.select(function() { return this.ownerSVGElement; }) as any;
+                const svgDefs = ensureDefs(ownerSvg);
+                return getNodeFill(node, this.memberToFamilies, this.familyColors, svgDefs);
+            })
+            .attr("opacity", node => {
+                if (this.activeFamilyIds.size === 0) return 1.0;  // No filtering active
+                return getNodeOpacity(node, this.memberToFamilies, this.activeFamilyIds);
+            });
 
         // Add the images
         add_images(circle_group);
@@ -97,8 +125,19 @@ export class TreeRenderer {
             .duration(this.transition_milliseconds)
             .attr("transform", node => "translate(" + node.y + "," + node.x + ")");
 
-        // Update highlighted status
-        node_update.select("circle").attr("class", get_css_class);
+        // Update highlighted status, family colors, and opacity
+        node_update.select("circle")
+            .attr("class", get_css_class)
+            .attr("fill", node => {
+                if (this.familyColors.size === 0) return null; // Use CSS styling
+                const ownerSvg = this.g.select(function() { return this.ownerSVGElement; }) as any;
+                const svgDefs = ensureDefs(ownerSvg);
+                return getNodeFill(node, this.memberToFamilies, this.familyColors, svgDefs);
+            })
+            .attr("opacity", node => {
+                if (this.activeFamilyIds.size === 0) return 1.0;  // No filtering active
+                return getNodeOpacity(node, this.memberToFamilies, this.activeFamilyIds);
+            });
 
         // Remove any node that becomes invisible
         let node_exit = nodes_selected.exit()

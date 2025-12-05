@@ -1,3 +1,6 @@
+/* Family Filter Dropdown */
+@import '../src/ui/familyFilter/familyFilter.css';
+
 /* Modern Color Scheme Variables */
 :root {
     --primary-dark: #312e81; /* Indigo 900 */

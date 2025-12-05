@@ -8,6 +8,8 @@ import { FamilyData } from './types/types';
 import { filterPatrilineal } from './utils/patrilinealFilter';
 import { buildIdMaps, decodeState, updateURL, shareCurrentState } from './services/state/urlState';
 import { store } from './services/state/store';
+import { detectFamilies, getDefaultActiveFamilies } from './utils/familyDetection';
+import { FamilyDropdown } from './ui/familyFilter';
 
 // Constants
 const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzo66Bb8-z3QdqtNGZ9uhQJZJxePifl6nJwvtlot-3JtKp4YKYQdqJNFDY89lqHoMRdlKZmjWzh2OA/pub?output=csv";
@@ -58,8 +60,24 @@ async function init() {
     store.setData(inputData);
     buildIdMaps(inputData); // Build maps on full data
 
+    // Detect families
+    const { families, memberToFamilies, familyColors } = detectFamilies(inputData);
+    console.log(`Detected ${families.length} families:`, families.map(f => f.name).join(', '));
+
     // State restoration
     let urlState = decodeState();
+
+    // Determine default active families (use current node if available from URL)
+    const currentNodeId = urlState?.currentNode || inputData.start;
+    const defaultActiveFamilies = getDefaultActiveFamilies(families, memberToFamilies, currentNodeId);
+
+    // Set families in store
+    store.setFamilies(families, memberToFamilies, familyColors);
+
+    // Override with saved filters if available from localStorage (already loaded in store constructor)
+    if (store.getState().activeFamilyIds.size === 0 || store.getState().activeFamilyIds.size === families.length) {
+        store.setActiveFamilies(defaultActiveFamilies);
+    }
     let patrilinealMode = store.getState().isPatrilineal; // Loaded from localStorage in Store constructor
     let lastNodeId: string | null = null;
     let savedVisibleNodes: Set<string> | null = null;
@@ -72,6 +90,11 @@ async function init() {
         lastNodeId = urlState.currentNode;
         savedVisibleNodes = urlState.visibleNodes;
         savedTransform = urlState.transform;
+
+        // Restore active family IDs from URL if present
+        if (urlState.activeFamilyIds && urlState.activeFamilyIds.size > 0) {
+            store.setActiveFamilies(urlState.activeFamilyIds);
+        }
     } else {
         console.log('Loading state from localStorage');
         // patrilinealMode already set in store constructor from localStorage
@@ -116,6 +139,13 @@ async function init() {
     const toggleIcon = document.getElementById('toggle-icon');
     const toggleText = document.getElementById('toggle-text');
     const svg = d3.select("#tree-container").append("svg").attr("id", "tree-svg");
+
+    // Initialize Family Dropdown (only if multiple families detected)
+    let familyDropdown: FamilyDropdown | null = null;
+    if (families.length > 1) {
+        familyDropdown = new FamilyDropdown('family-filter-container');
+        familyDropdown.init();
+    }
 
     // Dimensions
     const updateDimensions = () => {
@@ -183,6 +213,27 @@ async function init() {
 
         familienbaum = new Familienbaum(displayData, svg as any);
 
+        // Set family state in renderer
+        const appState = store.getState();
+        familienbaum.renderer.setFamilyState(
+            appState.memberToFamilies,
+            appState.familyColors,
+            appState.activeFamilyIds
+        );
+
+        // Subscribe to store changes to update family filtering
+        store.subscribe((newState) => {
+            if (familienbaum) {
+                familienbaum.renderer.setFamilyState(
+                    newState.memberToFamilies,
+                    newState.familyColors,
+                    newState.activeFamilyIds
+                );
+                // Redraw to apply new family colors/opacity
+                familienbaum.draw(false);
+            }
+        });
+
         const onViewChange = () => {
             // On view change (zoom/pan/expand)
 
@@ -201,8 +252,8 @@ async function init() {
             }
 
             // 2. Update URL state using the updated store
-            const state = store.getState();
-            updateURL(state);
+            const updatedState = store.getState();
+            updateURL(updatedState);
         };
 
         // Initialize Editor (Sidebar, etc.)
@@ -427,8 +478,13 @@ async function init() {
                 // We need to ensure the tree is in the correct mode before restoring visibility
                 // renderTree() sets up the data but might reset visibility if we aren't careful.
                 // However, renderTreeInternal uses savedVisibleNodes if set.
-                // So we can set savedVisibleNodes here if we were to call renderTree, 
+                // So we can set savedVisibleNodes here if we were to call renderTree,
                 // but since we have access to familienbaum, we can just update it directly if it exists.
+            }
+
+            // Restore active family IDs from URL if present
+            if (urlState.activeFamilyIds && urlState.activeFamilyIds.size > 0) {
+                store.setActiveFamilies(urlState.activeFamilyIds);
             }
 
             if (familienbaum && familienbaum.dag_all) {
