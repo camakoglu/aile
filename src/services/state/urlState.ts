@@ -123,13 +123,6 @@ export function decodeState(): any {
             }
         }
 
-        console.log('Decoded URL state:', {
-            currentNode: decoded.currentNode,
-            transform: decoded.transform,
-            patrilineal: decoded.patrilineal,
-            visibleCount: decoded.visibleNodes.size
-        });
-
         return decoded;
     } catch (e) {
         console.warn('Error decoding state from URL, falling back to localStorage:', e);

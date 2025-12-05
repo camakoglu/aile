@@ -2,9 +2,6 @@ import { FamilyData } from '../types/types';
 
 // Filter data to show only patrilineal descendants
 export function filterPatrilineal(data: FamilyData): FamilyData {
-    console.log("Starting patrilineal filter, total members:", Object.keys(data.members).length);
-    console.log("Displayed root:", data.start, data.members[data.start]?.name);
-
     const filtered: FamilyData = {
         start: "", // Will be set after determining lineage
         members: {},
@@ -41,7 +38,6 @@ export function filterPatrilineal(data: FamilyData): FamilyData {
             actualRoot = memberId;
         }
     }
-    console.log("Actual tree root:", actualRoot, data.members[actualRoot]?.name, "gen:", lowestGen);
 
     // Helper to get blood parent (prioritize Father for patrilineal check)
     function getBloodParent(memberId: string): string | null {
@@ -108,11 +104,8 @@ export function filterPatrilineal(data: FamilyData): FamilyData {
         isInMaleLineage(memberId);
     }
 
-    console.log("Male lineage members:", maleLineage.size);
-
     // If the displayed root is not in male lineage, switch to actual root
     const displayRoot = maleLineage.has(data.start) ? data.start : actualRoot;
-    console.log("Using display root:", displayRoot, data.members[displayRoot]?.name);
 
     // Second pass: Identify who to DISPLAY
     // Rule:
@@ -194,9 +187,6 @@ export function filterPatrilineal(data: FamilyData): FamilyData {
         }
     }
 
-    console.log("Filtered members count:", Object.keys(filtered.members).length);
-    console.log("Filtered links count:", filtered.links.length);
-
     // SAFEGUARD: Ensure display root is in members
     if (!filtered.members[displayRoot]) {
         console.warn("Display root", displayRoot, "was missing from filtered members! Adding it forcibly.");
@@ -207,9 +197,6 @@ export function filterPatrilineal(data: FamilyData): FamilyData {
     const rootInLinks = filtered.links.some(link => link[0] === displayRoot || link[1] === displayRoot);
     if (!rootInLinks) {
         console.warn("Display root", displayRoot, "is NOT in any filtered link! This will cause 'Node not found' error.");
-        // Attempt to find at least one link for the root
-        const rootLinks = data.links.filter(link => link[0] === displayRoot || link[1] === displayRoot);
-        console.log("Original links for root:", rootLinks);
     }
 
     filtered.start = displayRoot;

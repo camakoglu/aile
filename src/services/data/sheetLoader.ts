@@ -76,8 +76,6 @@ export function getHighestId(): number {
 }
 
 export function processSheetData(rows: string[][]): FamilyData {
-    console.log("Processing " + rows.length + " data rows with Zod validation.");
-
     const members: { [key: string]: Member } = {};
     const links: Array<[string, string]> = [];
     const unions: { [key: string]: string } = {};
@@ -229,9 +227,7 @@ export async function loadFromGoogleSheet(url: string): Promise<FamilyData> {
         const allRows = d3.csvParseRows(rawText);
         if (!allRows || allRows.length <= 1) throw new Error("No data rows found.");
         const dataRows = allRows.slice(1);
-        const processed = processSheetData(dataRows);
-        console.log("Graph built:", processed);
-        return processed;
+        return processSheetData(dataRows);
     } catch (error) {
         console.error("Error loading sheet:", error);
         alert("Error loading data. Check console.");
