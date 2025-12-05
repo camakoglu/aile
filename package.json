@@ -7,7 +7,10 @@
     "test": "vitest",
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrate": "tsx scripts/migrate.ts",
+    "migrate:dry-run": "tsx scripts/migrate.ts --dry-run",
+    "migrate:sql": "tsx scripts/migrate.ts --sql-only"
   },
   "repository": {
     "type": "git",
@@ -22,6 +25,7 @@
   },
   "homepage": "https://github.com/camakoglu/aile#readme",
   "dependencies": {
+    "@supabase/supabase-js": "^2.86.2",
     "d3": "^7.9.0",
     "zod": "^3.25.76"
   },
@@ -29,6 +33,7 @@
     "@types/d3": "^7.4.3",
     "@types/node": "^24.10.1",
     "jsdom": "^27.2.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.2.4",
     "vitest": "^4.0.14"

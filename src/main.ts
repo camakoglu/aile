@@ -1,6 +1,6 @@
 import '../css/familienbaum.css';
 import * as d3 from 'd3';
-import { loadFromGoogleSheet } from './services/data/sheetLoader';
+import { loadFamilyData } from './services/data/dataLoader';
 import { Familienbaum } from './components/Tree/Familienbaum';
 import { initEditor } from './ui/editor/index';
 import { initDarkMode } from './utils/darkMode';
@@ -29,9 +29,12 @@ async function init() {
     }
 
     try {
-        inputData = await loadFromGoogleSheet(GOOGLE_SHEET_CSV_URL);
-        localStorage.setItem('soyagaci_cached_data', JSON.stringify(inputData));
-        console.log('Data loaded from Google Sheets');
+        // Try Supabase first, then fall back to Google Sheets
+        inputData = await loadFamilyData(GOOGLE_SHEET_CSV_URL);
+        if (inputData) {
+            localStorage.setItem('soyagaci_cached_data', JSON.stringify(inputData));
+            console.log('Data loaded successfully');
+        }
     } catch (e) {
         // Only try cache if NOT in reset mode
         if (!isReset) {
