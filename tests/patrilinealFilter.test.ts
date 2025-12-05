@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { filterPatrilineal } from '../src/patrilinealFilter';
-import { FamilyData } from '../src/types';
+import { filterPatrilineal } from '../src/utils/patrilinealFilter';
+import { FamilyData } from '../src/types/types';
 
 describe('patrilinealFilter', () => {
     it('should include the root node', () => {

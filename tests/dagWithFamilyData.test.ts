@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { get_name, is_member, get_birth_date } from '../src/dagWithFamilyData';
-import { D3Node } from '../src/types';
+import { get_name, is_member, get_birth_date } from '../src/components/Tree/dagWithFamilyData';
+import { D3Node } from '../src/types/types';
 
 describe('dagWithFamilyData helpers', () => {
     it('should extract name correctly', () => {

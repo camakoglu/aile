@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { encodeState, decodeState, buildIdMaps, persistentIdMap } from '../src/urlState';
-import { FamilyData } from '../src/types';
+import { encodeState, decodeState, buildIdMaps, persistentIdMap } from '../src/services/state/urlState';
+import { FamilyData } from '../src/types/types';
 
 describe('urlState', () => {
     // Mock window.location and history
