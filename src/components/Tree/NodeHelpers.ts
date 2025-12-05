@@ -1,9 +1,10 @@
 import * as d3 from 'd3';
 import { D3Node } from '../../types/types';
 import { is_member, get_death_date, get_image_path, get_gender } from './dagWithFamilyData';
+import { LAYOUT_CONSTANTS } from '../../constants/layout';
 
 export function get_node_size() {
-    return 28;
+    return LAYOUT_CONSTANTS.NODE_SIZE;
 }
 
 export function get_css_class(node: D3Node) {

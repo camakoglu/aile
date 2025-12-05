@@ -2,6 +2,7 @@ import { DagWithFamilyData, get_year_of_birth_date, is_member } from './dagWithF
 import { get_roots } from './dagWithRelations';
 import { DagRelaxation } from './dagRelaxation';
 import { D3Node } from '../../types/types';
+import { LAYOUT_CONSTANTS } from '../../constants/layout';
 
 export class DagLayout {
     dag: DagWithFamilyData;
@@ -177,7 +178,7 @@ export class DagLayout {
         }
         // Perform a relaxation of coordinates
         let relaxation = new DagRelaxation(this.dag, this.node_size);
-        for (let _pass of [1, 2, 3, 4, 5, 6, 7, 8]) {
+        for (let _pass = 0; _pass < LAYOUT_CONSTANTS.RELAXATION_PASSES; _pass++) {
             for (let [_generation_id, nodes] of generations) {
                 relaxation.run(nodes);
             }

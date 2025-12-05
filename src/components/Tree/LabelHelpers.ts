@@ -2,6 +2,7 @@ import * as d3 from 'd3';
 import { D3Node } from '../../types/types';
 import { is_member, get_name, get_second_names, get_birth_date, get_death_date, get_occupation, get_note, get_birth_place, get_death_place, get_marriage } from './dagWithFamilyData';
 import { get_node_size } from './NodeHelpers';
+import { LAYOUT_CONSTANTS } from '../../constants/layout';
 
 export function set_multiline(d3_element: d3.Selection<SVGGElement, D3Node, any, any>, node: D3Node, edit_mode = true) {
     function get_array(name_string: string) {
@@ -92,11 +93,11 @@ export function set_multiline(d3_element: d3.Selection<SVGGElement, D3Node, any,
     let lines = get_label(node, edit_mode);
     if (lines.length < 1) return;
     let d3_text = d3_element.append("text").attr("class", "node-label").attr("dominant-baseline", "central");
-    let line_sep = 14;
+    let line_sep = LAYOUT_CONSTANTS.LABEL_LINE_SEPARATION;
     let line_offset = -line_sep * (lines.length - 1) / 2;
     for (let i = 0; i < lines.length; i++) {
         let line_text = lines[i];
-        let line_length = 40;
+        let line_length = LAYOUT_CONSTANTS.MAX_LABEL_LENGTH;
         if (line_text.length > line_length) {
             line_text = line_text.substring(0, line_length - 3) + "...";
         }

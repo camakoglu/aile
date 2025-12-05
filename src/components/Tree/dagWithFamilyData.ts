@@ -1,5 +1,6 @@
 import { DagWithRelations } from './dagWithRelations';
 import { D3Node, Member } from '../../types/types';
+import { LAYOUT_CONSTANTS } from '../../constants/layout';
 
 export class DagWithFamilyData extends DagWithRelations {
     constructor(links: Array<[string, string]>, input_per_node_id: { [key: string]: Member } = {}) {
@@ -130,7 +131,7 @@ export function get_year_from_string(date_string: string, default_year: number):
 
 export function get_year_of_birth_date(node: D3Node): number {
     const date_string = get_birth_date(node);
-    return get_year_from_string(date_string, 1980);
+    return get_year_from_string(date_string, LAYOUT_CONSTANTS.DEFAULT_BIRTH_YEAR);
 }
 
 export function get_image_path(node: D3Node): string {

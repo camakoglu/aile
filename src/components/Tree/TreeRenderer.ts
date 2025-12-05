@@ -3,10 +3,11 @@ import { D3Node } from '../../types/types';
 import { is_member } from './dagWithFamilyData';
 import { get_node_size, get_css_class, add_images } from './NodeHelpers';
 import { set_multiline } from './LabelHelpers';
+import { LAYOUT_CONSTANTS } from '../../constants/layout';
 
 export class TreeRenderer {
     g: d3.Selection<SVGGElement, unknown, HTMLElement, any>;
-    transition_milliseconds: number = 500;
+    transition_milliseconds: number = LAYOUT_CONSTANTS.TRANSITION_DURATION_MS;
 
     // Callbacks
     onNodeClick: (node: D3Node, event: any) => void;
