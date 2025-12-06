@@ -17,8 +17,9 @@ export interface Family {
  */
 export interface FamilyDetectionResult {
   families: Family[];
-  memberToFamilies: Map<string, string[]>; // member_id -> family_ids[]
+  memberToFamilies: Map<string, string[]>; // member_id -> family_ids[] (single for children, multiple for spouses)
   familyColors: Map<string, string>;       // family_id -> color
+  memberBirthFamily: Map<string, string>;  // member_id -> birth_family_id (patrilineal)
 }
 
 /**
@@ -38,12 +39,14 @@ export function detectFamilies(data: FamilyData): FamilyDetectionResult {
       families: [],
       memberToFamilies: new Map(),
       familyColors: new Map(),
+      memberBirthFamily: new Map(),
     };
   }
 
-  // Step 2: Create families from roots
+  // Step 2: Create families from roots (patrilineal)
   const families: Family[] = [];
   const memberToFamilies = new Map<string, string[]>();
+  const memberBirthFamily = new Map<string, string>(); // Tracks birth family (patrilineal line)
   const familyMemberSets = new Map<string, Set<string>>();
 
   rootMemberIds.forEach((rootId, index) => {
@@ -66,28 +69,30 @@ export function detectFamilies(data: FamilyData): FamilyDetectionResult {
     familyMemberSets.set(familyId, new Set());
   });
 
-  // Step 3: Assign descendants to families
+  // Step 3: Assign patrilineal descendants to families
   families.forEach(family => {
     const members = familyMemberSets.get(family.id)!;
-    assignDescendants(data, family.rootMemberId, members);
+    assignDescendantsPatrilineal(data, family.rootMemberId, family.id, members, memberBirthFamily);
   });
 
-  // Step 4: Assign spouses to their spouse's families
+  // Step 4: Assign spouses - they get gradient (birth family + spouse's family)
   families.forEach(family => {
     const members = familyMemberSets.get(family.id)!;
-    assignSpouses(data, members);
+    assignSpousesToFamilies(data, family.id, members, memberBirthFamily, memberToFamilies);
   });
 
-  // Step 5: Build memberToFamilies map and update member counts
+  // Step 5: Complete memberToFamilies map and update member counts
+  // (Spouses already have entries from Step 4, now add non-spouse members)
   families.forEach(family => {
     const members = familyMemberSets.get(family.id)!;
     family.memberCount = members.size;
 
     members.forEach(memberId => {
+      // If member doesn't have entry yet, add their birth family
       if (!memberToFamilies.has(memberId)) {
-        memberToFamilies.set(memberId, []);
+        const birthFamilyId = memberBirthFamily.get(memberId);
+        memberToFamilies.set(memberId, birthFamilyId ? [birthFamilyId] : []);
       }
-      memberToFamilies.get(memberId)!.push(family.id);
     });
   });
 
@@ -97,7 +102,7 @@ export function detectFamilies(data: FamilyData): FamilyDetectionResult {
     familyColors.set(family.id, family.color);
   });
 
-  return { families, memberToFamilies, familyColors };
+  return { families, memberToFamilies, familyColors, memberBirthFamily };
 }
 
 /**
@@ -138,13 +143,16 @@ function findRootNodes(data: FamilyData): string[] {
 }
 
 /**
- * Assign all descendants of a root to a family
+ * Assign all patrilineal descendants of a root to a family
+ * Only follows father's lineage - children inherit father's family
  * Uses BFS to traverse the tree
  */
-function assignDescendants(
+function assignDescendantsPatrilineal(
   data: FamilyData,
   rootMemberId: string,
-  familyMembers: Set<string>
+  familyId: string,
+  familyMembers: Set<string>,
+  memberBirthFamily: Map<string, string>
 ): void {
   const queue: string[] = [rootMemberId];
   const visited = new Set<string>();
@@ -159,27 +167,77 @@ function assignDescendants(
     // Add to family
     familyMembers.add(memberId);
 
-    // Find unions this member is part of
+    // Track birth family (patrilineal line)
+    if (!memberBirthFamily.has(memberId)) {
+      memberBirthFamily.set(memberId, familyId);
+    }
+
+    // Find unions where this member is a parent
     const unionIds = getUnionsForMember(data, memberId);
 
-    // For each union, find children and add to queue
+    // For each union, find children where THIS member is the FATHER
     unionIds.forEach(unionId => {
-      const children = getChildrenOfUnion(data, unionId);
-      children.forEach(childId => {
-        if (!visited.has(childId)) {
-          queue.push(childId);
-        }
-      });
+      const partners = parseUnionId(unionId);
+      const isFather = isPersonFatherInUnion(data, memberId, partners);
+
+      // Only continue patrilineal line (where current member is father)
+      if (isFather) {
+        const children = getChildrenOfUnion(data, unionId);
+        children.forEach(childId => {
+          if (!visited.has(childId)) {
+            queue.push(childId);
+          }
+        });
+      }
     });
   }
 }
 
 /**
- * Assign spouses to their partner's families
- * If person A is in Family X and marries person B,
- * then person B also becomes part of Family X
+ * Check if a person is the father in a union
+ * Father is determined by gender = 'E' (Erkek/Male)
  */
-function assignSpouses(data: FamilyData, familyMembers: Set<string>): void {
+function isPersonFatherInUnion(
+  data: FamilyData,
+  personId: string,
+  partners: string[]
+): boolean {
+  const person = data.members[personId];
+  if (!person) return false;
+
+  // If gender is explicitly male, they are the father
+  if (person.gender === 'E') return true;
+
+  // If gender is explicitly female, they are not the father
+  if (person.gender === 'K') return false;
+
+  // If gender is unknown, assume the person is father if their partner is female
+  const partnerId = partners.find(p => p !== personId);
+  if (partnerId) {
+    const partner = data.members[partnerId];
+    if (partner && partner.gender === 'K') return true;
+  }
+
+  // Default: assume male if no gender info
+  return true;
+}
+
+/**
+ * Assign spouses to their partner's families
+ * Spouses show gradient: birth family + married family
+ *
+ * For example:
+ * - Woman born in Family A (memberBirthFamily[woman] = A)
+ * - Marries man from Family B
+ * - memberToFamilies[woman] = [A, B] → shows A+B gradient
+ */
+function assignSpousesToFamilies(
+  data: FamilyData,
+  familyId: string,
+  familyMembers: Set<string>,
+  memberBirthFamily: Map<string, string>,
+  memberToFamilies: Map<string, string[]>
+): void {
   const originalMembers = new Set(familyMembers);
 
   originalMembers.forEach(memberId => {
@@ -193,8 +251,33 @@ function assignSpouses(data: FamilyData, familyMembers: Set<string>): void {
         if (partnerId === memberId || partnerId === '0') return;
         if (!data.members[partnerId]) return;
 
-        // Add spouse to family
+        // Add spouse to family members set
         familyMembers.add(partnerId);
+
+        // If spouse doesn't have a birth family yet, this becomes their birth family
+        // (This handles cases where spouse is marked as is_spouse and has no parents)
+        if (!memberBirthFamily.has(partnerId)) {
+          memberBirthFamily.set(partnerId, familyId);
+        }
+
+        // Add spouse to memberToFamilies for gradient display
+        // They will show both their birth family and married family
+        if (!memberToFamilies.has(partnerId)) {
+          memberToFamilies.set(partnerId, []);
+        }
+
+        const spouseFamilies = memberToFamilies.get(partnerId)!;
+        const birthFamilyId = memberBirthFamily.get(partnerId);
+
+        // Add birth family if it exists and not already in list
+        if (birthFamilyId && !spouseFamilies.includes(birthFamilyId)) {
+          spouseFamilies.push(birthFamilyId);
+        }
+
+        // Add married family if not already in list
+        if (!spouseFamilies.includes(familyId)) {
+          spouseFamilies.push(familyId);
+        }
       });
     });
   });
@@ -266,21 +349,25 @@ function getFamilyName(member: Member): string {
 
 /**
  * Get the default active families based on current node
- * Returns families of the current node, or all families if no current node
+ * Returns the birth family (patrilineal line) of the current node as primary
  */
 export function getDefaultActiveFamilies(
   families: Family[],
-  memberToFamilies: Map<string, string[]>,
+  memberBirthFamily: Map<string, string>,
   currentNodeId?: string
 ): Set<string> {
-  // If we have a current node, use its families
+  // If we have a current node, use its birth family (patrilineal line) as primary
   if (currentNodeId) {
-    const nodeFamilies = memberToFamilies.get(currentNodeId);
-    if (nodeFamilies && nodeFamilies.length > 0) {
-      return new Set(nodeFamilies);
+    const birthFamilyId = memberBirthFamily.get(currentNodeId);
+    if (birthFamilyId) {
+      return new Set([birthFamilyId]);
     }
   }
 
-  // Otherwise, show all families
-  return new Set(families.map(f => f.id));
+  // Otherwise, show the first family as default (or all families)
+  if (families.length > 0) {
+    return new Set([families[0].id]);
+  }
+
+  return new Set();
 }

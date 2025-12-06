@@ -60,16 +60,16 @@ async function init() {
     store.setData(inputData);
     buildIdMaps(inputData); // Build maps on full data
 
-    // Detect families
-    const { families, memberToFamilies, familyColors } = detectFamilies(inputData);
+    // Detect families (patrilineal)
+    const { families, memberToFamilies, familyColors, memberBirthFamily } = detectFamilies(inputData);
     console.log(`Detected ${families.length} families:`, families.map(f => f.name).join(', '));
 
     // State restoration
     let urlState = decodeState();
 
-    // Determine default active families (use current node if available from URL)
+    // Determine default primary family (use current node's birth family if available from URL)
     const currentNodeId = urlState?.currentNode || inputData.start;
-    const defaultActiveFamilies = getDefaultActiveFamilies(families, memberToFamilies, currentNodeId);
+    const defaultActiveFamilies = getDefaultActiveFamilies(families, memberBirthFamily, currentNodeId);
 
     // Set families in store
     store.setFamilies(families, memberToFamilies, familyColors);
@@ -77,6 +77,12 @@ async function init() {
     // Override with saved filters if available from localStorage (already loaded in store constructor)
     if (store.getState().activeFamilyIds.size === 0 || store.getState().activeFamilyIds.size === families.length) {
         store.setActiveFamilies(defaultActiveFamilies);
+    }
+
+    // Set primary family (from URL, localStorage, or default)
+    if (!store.getPrimaryFamily() && defaultActiveFamilies.size > 0) {
+        const primaryFamilyId = Array.from(defaultActiveFamilies)[0];
+        store.setPrimaryFamily(primaryFamilyId);
     }
     let patrilinealMode = store.getState().isPatrilineal; // Loaded from localStorage in Store constructor
     let lastNodeId: string | null = null;

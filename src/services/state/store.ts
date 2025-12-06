@@ -17,6 +17,7 @@ export interface AppState {
     memberToFamilies: Map<string, string[]>; // member_id -> family_ids
     familyColors: Map<string, string>;       // family_id -> color
     activeFamilyIds: Set<string>;            // Currently visible families
+    primaryFamilyId: string | null;          // Primary family (tree organized around this)
 }
 
 type Listener = (state: AppState) => void;
@@ -44,6 +45,7 @@ export class FamilyTreeStore {
             memberToFamilies: new Map(),
             familyColors: new Map(),
             activeFamilyIds: new Set(),
+            primaryFamilyId: null,
         };
 
         // Load initial preferences
@@ -58,6 +60,12 @@ export class FamilyTreeStore {
             } catch (e) {
                 console.warn('Failed to parse saved family filters', e);
             }
+        }
+
+        // Load primary family preference
+        const savedPrimaryFamily = localStorage.getItem('soyagaci_primary_family');
+        if (savedPrimaryFamily) {
+            this.state.primaryFamilyId = savedPrimaryFamily;
         }
     }
 
@@ -154,6 +162,15 @@ export class FamilyTreeStore {
             this.state.activeFamilyIds = new Set(families.map(f => f.id));
         }
 
+        // Set default primary family if not already set
+        if (!this.state.primaryFamilyId && families.length > 0) {
+            // Use first active family as primary
+            const firstActiveFamily = Array.from(this.state.activeFamilyIds)[0];
+            if (firstActiveFamily) {
+                this.state.primaryFamilyId = firstActiveFamily;
+            }
+        }
+
         this.notify();
     }
 
@@ -190,6 +207,20 @@ export class FamilyTreeStore {
         if (!nodeFamilies || nodeFamilies.length === 0) return true; // Show nodes without families
 
         return nodeFamilies.some(familyId => this.state.activeFamilyIds.has(familyId));
+    }
+
+    setPrimaryFamily(familyId: string | null) {
+        this.state.primaryFamilyId = familyId;
+        if (familyId) {
+            localStorage.setItem('soyagaci_primary_family', familyId);
+        } else {
+            localStorage.removeItem('soyagaci_primary_family');
+        }
+        this.notify();
+    }
+
+    getPrimaryFamily(): string | null {
+        return this.state.primaryFamilyId;
     }
 }
 
