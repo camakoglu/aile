@@ -1,6 +1,7 @@
 import * as d3 from 'd3';
 import { D3Node } from '../../types/types';
 import { UPLOAD_SCRIPT_URL, COLUMN_MAPPING } from './config';
+import { uploadPhotoToStorage, updateMemberImagePath } from '../../services/storage/photoStorage';
 
 // Declare Cropper global
 declare class Cropper {
@@ -20,7 +21,7 @@ export function getBase64(file: File): Promise<string> {
 }
 
 export async function uploadPhoto(file: File, node: D3Node) {
-    const statusEl = document.getElementById('save-status'); // Use save-status instead
+    const statusEl = document.getElementById('save-status');
     const sidebarImage = document.getElementById('sidebar-image') as HTMLImageElement;
 
     if (statusEl) {
@@ -34,63 +35,106 @@ export async function uploadPhoto(file: File, node: D3Node) {
         }
 
         const memberData = (node.added_data as any).input;
-        let sheetRow: number;
+        let memberId: number;
 
-        if (memberData && memberData.row_index) {
-            sheetRow = memberData.row_index;
+        // Extract member ID from node data
+        if (memberData && memberData.id) {
+            // Supabase: use direct ID
+            memberId = memberData.id;
         } else if (node.data.startsWith("mem_")) {
-            // Fallback for old IDs
-            const memberId = parseInt(node.data.split("_")[1]);
-            sheetRow = memberId + 2;
+            // Google Sheets: extract from mem_X format
+            memberId = parseInt(node.data.split("_")[1]);
         } else {
-            throw new Error("Kişi verisi veya satır numarası bulunamadı.");
+            throw new Error("Kişi ID'si bulunamadı.");
         }
 
-        const base64Data = await getBase64(file);
+        // Try Supabase Storage first
+        const publicUrl = await uploadPhotoToStorage(file, `mem_${memberId}`);
 
-        const payload = {
-            fileName: file.name,
-            mimeType: file.type,
-            fileData: base64Data,
-            row: sheetRow,
-            colIndex: COLUMN_MAPPING["image_path"] || 9 // Use hardcoded index
-        };
+        if (publicUrl) {
+            // Upload to Supabase Storage successful
+            console.log('Photo uploaded to Supabase Storage:', publicUrl);
 
-        await fetch(UPLOAD_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors', // Use no-cors to avoid CORS errors, response will be opaque
-            headers: {
-                'Content-Type': 'text/plain;charset=utf-8',
-            },
-            body: JSON.stringify(payload)
-        });
+            // Update database with new image URL
+            const dbUpdateSuccess = await updateMemberImagePath(memberId, publicUrl);
 
-        // Optimistic UI Update
-        const temporaryImageUrl = URL.createObjectURL(file);
+            if (!dbUpdateSuccess) {
+                console.warn('Failed to update image_path in database, but photo is uploaded');
+            }
 
-        // 1. Update Sidebar Image
-        if (sidebarImage) {
-            sidebarImage.src = temporaryImageUrl;
-            sidebarImage.style.display = "inline-block";
-        }
+            // Update UI with actual Supabase URL
+            if (sidebarImage) {
+                sidebarImage.src = publicUrl;
+                sidebarImage.style.display = "inline-block";
+            }
 
-        // 2. Update Node Data
-        if ((node.added_data as any).input) {
-            (node.added_data as any).input.image_path = temporaryImageUrl;
-        }
+            // Update Node Data
+            if ((node.added_data as any).input) {
+                (node.added_data as any).input.image_path = publicUrl;
+            }
 
-        // 3. Update Tree Node Image
-        d3.selectAll<SVGGElement, D3Node>("g.node")
-            .filter(d => d.data === node.data)
-            .select("image")
-            .attr("href", temporaryImageUrl);
+            // Update Tree Node Image
+            d3.selectAll<SVGGElement, D3Node>("g.node")
+                .filter(d => d.data === node.data)
+                .select("image")
+                .attr("href", publicUrl);
 
-        if (statusEl) {
-            statusEl.innerText = "Yüklendi! (Kalıcı olması 5-10 dk sürebilir)";
-            statusEl.style.color = "green";
-            setTimeout(() => {
-                statusEl.innerText = "";
-            }, 5000);
+            if (statusEl) {
+                statusEl.innerText = "Fotoğraf yüklendi!";
+                statusEl.style.color = "green";
+                setTimeout(() => {
+                    statusEl.innerText = "";
+                }, 3000);
+            }
+
+        } else {
+            // Fallback to Google Sheets if Supabase not configured
+            console.log('Supabase not configured, falling back to Google Sheets upload');
+
+            const sheetRow = memberData?.row_index || memberId + 2;
+            const base64Data = await getBase64(file);
+
+            const payload = {
+                fileName: file.name,
+                mimeType: file.type,
+                fileData: base64Data,
+                row: sheetRow,
+                colIndex: COLUMN_MAPPING["image_path"] || 9
+            };
+
+            await fetch(UPLOAD_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: {
+                    'Content-Type': 'text/plain;charset=utf-8',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            // Optimistic UI Update with temporary URL
+            const temporaryImageUrl = URL.createObjectURL(file);
+
+            if (sidebarImage) {
+                sidebarImage.src = temporaryImageUrl;
+                sidebarImage.style.display = "inline-block";
+            }
+
+            if ((node.added_data as any).input) {
+                (node.added_data as any).input.image_path = temporaryImageUrl;
+            }
+
+            d3.selectAll<SVGGElement, D3Node>("g.node")
+                .filter(d => d.data === node.data)
+                .select("image")
+                .attr("href", temporaryImageUrl);
+
+            if (statusEl) {
+                statusEl.innerText = "Yüklendi! (Google Drive - 5-10 dk sürebilir)";
+                statusEl.style.color = "green";
+                setTimeout(() => {
+                    statusEl.innerText = "";
+                }, 5000);
+            }
         }
 
     } catch (error: any) {

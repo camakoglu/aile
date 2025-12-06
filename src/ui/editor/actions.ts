@@ -6,6 +6,7 @@ import { uploadPhoto } from './image';
 import { pendingChildPhoto, setPendingChildPhoto } from './state';
 import { get_name } from '../../components/Tree/dagWithFamilyData';
 import { getNextId } from '../../services/data/sheetLoader';
+import { deletePhotoFromStorage, updateMemberImagePath } from '../../services/storage/photoStorage';
 
 export async function saveData(node: D3Node, updates: any) {
     const statusEl = document.getElementById('save-status');
@@ -61,8 +62,22 @@ export async function saveData(node: D3Node, updates: any) {
             if (titleEl) titleEl.innerText = (node.added_data as any).input['name'];
         }
 
-        // Update tree node image if photo was deleted
+        // Handle photo deletion
         if (updates[COLUMN_MAPPING['image_path']] === "") {
+            // Delete from Supabase Storage if current image is from Supabase
+            const currentImagePath = (node.added_data as any).input?.image_path;
+            if (currentImagePath && currentImagePath.includes('supabase.co/storage')) {
+                await deletePhotoFromStorage(currentImagePath);
+                console.log('Deleted photo from Supabase Storage');
+            }
+
+            // Update database to remove image_path
+            const memberData = (node.added_data as any).input;
+            if (memberData && memberData.id) {
+                await updateMemberImagePath(memberData.id, null);
+            }
+
+            // Update tree node image to placeholder
             d3.selectAll<SVGGElement, D3Node>("g.node")
                 .filter(d => d.data === node.data)
                 .select("image")
