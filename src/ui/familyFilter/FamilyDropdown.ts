@@ -110,12 +110,16 @@ export class FamilyDropdown {
    */
   private renderFamilyItem(family: Family): string {
     const isActive = store.isFamilyActive(family.id);
+    const isPrimary = store.getPrimaryFamily() === family.id;
 
     return `
-      <label class="family-item">
+      <label class="family-item ${isPrimary ? 'primary' : ''}">
         <input type="checkbox" data-family-id="${family.id}" ${isActive ? 'checked' : ''}>
         <span class="color-indicator" style="background: ${family.color}"></span>
-        <span class="family-name">${this.escapeHtml(family.name)}</span>
+        <span class="family-name-wrapper" data-family-id="${family.id}" data-root-id="${family.rootMemberId}">
+          <span class="family-name">${this.escapeHtml(family.name)}</span>
+          ${isPrimary ? '<span class="primary-indicator" title="Primary Family">⭐</span>' : ''}
+        </span>
         <span class="member-count">${family.memberCount} member${family.memberCount !== 1 ? 's' : ''}</span>
       </label>
     `;
@@ -163,6 +167,21 @@ export class FamilyDropdown {
         const familyId = target.dataset.familyId;
         if (familyId) {
           store.toggleFamily(familyId);
+        }
+      });
+    });
+
+    // Family name click to pivot (make primary)
+    const familyNameWrappers = this.menu.querySelectorAll('.family-name-wrapper');
+    familyNameWrappers.forEach(wrapper => {
+      wrapper.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const target = e.currentTarget as HTMLElement;
+        const familyId = target.dataset.familyId;
+        const rootId = target.dataset.rootId;
+        if (familyId && rootId) {
+          this.pivotToFamily(familyId, rootId);
         }
       });
     });
@@ -223,6 +242,28 @@ export class FamilyDropdown {
   }
 
   /**
+   * Pivot to a family - make it primary and re-center tree on its root
+   */
+  private pivotToFamily(familyId: string, rootMemberId: string): void {
+    // Set as primary family
+    store.setPrimaryFamily(familyId);
+
+    // Ensure this family is active/visible
+    if (!store.isFamilyActive(familyId)) {
+      store.toggleFamily(familyId);
+    }
+
+    // Dispatch custom event for tree reorganization
+    const event = new CustomEvent('family-pivot', {
+      detail: { familyId, rootMemberId }
+    });
+    window.dispatchEvent(event);
+
+    // Close the menu after pivot
+    this.closeMenu();
+  }
+
+  /**
    * Update display when state changes
    */
   private updateDisplay(): void {
@@ -243,13 +284,45 @@ export class FamilyDropdown {
       allCheckbox.indeterminate = activeCount > 0 && activeCount < totalCount;
     }
 
-    // Update individual checkboxes
+    // Update individual checkboxes and primary indicators
     const familyCheckboxes = this.menu?.querySelectorAll('input[data-family-id]');
     familyCheckboxes?.forEach(checkbox => {
       const input = checkbox as HTMLInputElement;
       const familyId = input.dataset.familyId;
       if (familyId) {
         input.checked = store.isFamilyActive(familyId);
+      }
+    });
+
+    // Update primary family indicators
+    const primaryFamilyId = store.getPrimaryFamily();
+    const familyItems = this.menu?.querySelectorAll('.family-item');
+    familyItems?.forEach(item => {
+      const wrapper = item.querySelector('.family-name-wrapper') as HTMLElement;
+      if (wrapper) {
+        const familyId = wrapper.dataset.familyId;
+        const isPrimary = familyId === primaryFamilyId;
+
+        // Update primary class on item
+        if (isPrimary) {
+          item.classList.add('primary');
+        } else {
+          item.classList.remove('primary');
+        }
+
+        // Update star indicator
+        let starIndicator = wrapper.querySelector('.primary-indicator');
+        if (isPrimary && !starIndicator) {
+          // Add star if primary and doesn't have one
+          const star = document.createElement('span');
+          star.className = 'primary-indicator';
+          star.title = 'Primary Family';
+          star.textContent = '⭐';
+          wrapper.appendChild(star);
+        } else if (!isPrimary && starIndicator) {
+          // Remove star if not primary but has one
+          starIndicator.remove();
+        }
       }
     });
   }

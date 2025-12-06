@@ -151,6 +151,17 @@ async function init() {
     if (families.length > 1) {
         familyDropdown = new FamilyDropdown('family-filter-container');
         familyDropdown.init();
+
+        // Listen for family pivot events
+        window.addEventListener('family-pivot', ((event: CustomEvent) => {
+            const { familyId, rootMemberId } = event.detail;
+            console.log(`Pivoting to family ${familyId}, root member: ${rootMemberId}`);
+
+            // Re-center tree on the new family's root
+            if (familienbaum && familienbaum.data.members[rootMemberId]) {
+                familienbaum.draw(true, rootMemberId);
+            }
+        }) as EventListener);
     }
 
     // Dimensions
