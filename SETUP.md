@@ -94,7 +94,9 @@ CREATE POLICY "Public read access" ON unions FOR SELECT USING (true);
 1. In your Supabase project, go to **Settings** > **API** (left sidebar)
 2. Find these two values:
    - **Project URL**: `https://xxxxx.supabase.co`
-   - **anon public key**: Long string starting with `eyJhbG...`
+   - **Publishable key**: String starting with `sb_publishable_...`
+     - For projects created after November 2024, look for "Publishable key"
+     - For older projects, you can use the legacy "anon public" key (starts with `eyJhbG...`) which works until October 2025
 
 ### Step 4: Configure Local Development
 
@@ -106,9 +108,15 @@ CREATE POLICY "Public read access" ON unions FOR SELECT USING (true);
 2. Edit `.env.local` and add your Supabase credentials:
    ```env
    VITE_SUPABASE_URL=https://your-project-id.supabase.co
-   VITE_SUPABASE_ANON_KEY=eyJhbGc...your-anon-key...
+   VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...your-key...
    VITE_GOOGLE_SHEET_CSV_URL=https://docs.google.com/spreadsheets/d/e/YOUR_SHEET_ID/pub?output=csv
    ```
+
+   **Note:** If you have an older project (created before Nov 2024), you can use the legacy format:
+   ```env
+   VITE_SUPABASE_ANON_KEY=eyJhbGc...your-legacy-key...
+   ```
+   Both formats work - the code supports automatic fallback.
 
 3. Start the development server:
    ```bash
@@ -149,7 +157,8 @@ To deploy your app to GitHub Pages with Supabase:
 2. Click **Settings** > **Secrets and variables** > **Actions**
 3. Add the following repository secrets:
    - `VITE_SUPABASE_URL`: Your Supabase project URL
-   - `VITE_SUPABASE_ANON_KEY`: Your Supabase anon key
+   - `VITE_SUPABASE_PUBLISHABLE_KEY`: Your Supabase publishable key (new format)
+     - OR `VITE_SUPABASE_ANON_KEY`: Legacy anon key (old format) if using an older project
 
 4. Create `.github/workflows/deploy.yml`:
 
@@ -184,7 +193,7 @@ jobs:
       - name: Build with environment variables
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
         run: npm run build
 
       - name: Upload artifact
@@ -262,9 +271,9 @@ This means you can:
 
 ## Security Notes
 
-### Is it safe to expose the Supabase anon key?
+### Is it safe to expose the Supabase publishable/anon key?
 
-**Yes!** The anon key is designed to be used in client-side code. Security is enforced through:
+**Yes!** Both the publishable key (new format) and anon key (legacy format) are designed to be used in client-side code. Security is enforced through:
 
 1. **Row-Level Security (RLS)** policies on your database
 2. **API rate limiting** by Supabase
