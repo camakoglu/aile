@@ -63,6 +63,19 @@ body {
     filter: drop-shadow(0 0 15px rgba(129, 140, 248, 0.6));
 }
 
+.ugly {
+    fill: chartreuse !important;
+    stroke: magenta !important;
+    stroke-width: 5px !important;
+    filter: drop-shadow(0 0 15px magenta) !important;
+    animation: ugly-pulse 1s infinite alternate;
+}
+
+@keyframes ugly-pulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.2); }
+}
+
 .non-highlighted {
     fill: #94a3b8; /* Slate 400 */
     stroke: #64748b; /* Slate 500 */
