@@ -16,6 +16,170 @@ const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT
 // Initialize Dark Mode
 initDarkMode();
 
+function normalizeString(str: string): string {
+    return str.toLowerCase()
+        .replace(/ğ/g, 'g')
+        .replace(/ü/g, 'u')
+        .replace(/ş/g, 's')
+        .replace(/ı/g, 'i')
+        .replace(/ö/g, 'o')
+        .replace(/ç/g, 'c')
+        .replace(/â/g, 'a')
+        .replace(/î/g, 'i')
+        .replace(/û/g, 'u')
+        .replace(/[^a-z0-9]/g, '');
+}
+
+function triggerCirkinMode(familienbaum: Familienbaum) {
+    const targetGrandchildren = ["gulru", "gokcen", "ayse", "gulnihal", "feyza"];
+    let foundNodes: string[] = [];
+
+    // Reset all ugly flags first
+    for (let node of familienbaum.dag_all.nodes()) {
+        if (node.added_data.is_ugly) node.added_data.is_ugly = false;
+    }
+    
+    // 1. Find the top "Davut" (Gen 5)
+    // We expect: Davut -> Resit -> Davut -> Children -> Grandchildren (Targets)
+    
+    const potentialDavuts = familienbaum.dag_all.nodes().filter(n => is_member(n) && normalizeString(get_name(n)).includes("davut"));
+    
+    for (let davut of potentialDavuts) {
+        // Find child "Resit" (Gen 6)
+        const childrenUnions = davut.children ? davut.children() : [];
+        for (let u1 of childrenUnions) {
+            const children1 = u1.children ? u1.children() : [];
+            for (let child1 of children1) {
+                if (normalizeString(get_name(child1)).includes("resit")) {
+                    // Found Resit. Now find HIS child "Davut" (Gen 7)
+                    const resit = child1;
+                    const childrenUnions2 = resit.children ? resit.children() : [];
+                    for (let u2 of childrenUnions2) {
+                        const children2 = u2.children ? u2.children() : [];
+                        for (let child2 of children2) {
+                             if (normalizeString(get_name(child2)).includes("davut")) {
+                                 // Found Davut (Gen 7). Now traverse down to his grandchildren (Gen 9)
+                                 const davut2 = child2;
+                                 
+                                 // Gen 8 (Children of Davut 2)
+                                 const childrenUnions3 = davut2.children ? davut2.children() : [];
+                                 for (let u3 of childrenUnions3) {
+                                     const children3 = u3.children ? u3.children() : [];
+                                     for (let gen8 of children3) {
+                                         // Gen 9 (Grandchildren of Davut 2)
+                                         const childrenUnions4 = gen8.children ? gen8.children() : [];
+                                         for (let u4 of childrenUnions4) {
+                                             const children4 = u4.children ? u4.children() : [];
+                                             for (let gen9 of children4) {
+                                                 const gName = normalizeString(get_name(gen9));
+                                                 // Check against target list
+                                                 if (targetGrandchildren.some(t => gName.includes(t))) {
+                                                     foundNodes.push(gen9.data);
+                                                     gen9.added_data.is_ugly = true;
+                                                 }
+                                             }
+                                         }
+                                     }
+                                 }
+                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if (foundNodes.length === 0) {
+        console.warn("Cirkin mode: No matching lineage (Davut -> Resit -> Davut -> ... -> Targets) found.");
+        return;
+    }
+
+    // 1. Hide everything
+    for (let n of familienbaum.dag_all.nodes()) {
+        n.added_data.is_visible = false;
+    }
+    
+    // 2. Show targets and their full ancestors
+    for (let id of foundNodes) {
+        const node = familienbaum.dag_all.find_node(id);
+        if (!node) continue;
+        
+        node.added_data.is_visible = true;
+        
+        // Walk up parents
+        let parents = Array.from(familienbaum.dag_all.parents(node));
+        while (parents.length > 0) {
+            let p = parents.pop()!;
+            p.added_data.is_visible = true;
+            parents = parents.concat(familienbaum.dag_all.parents(p));
+        }
+    }
+
+    // 3. Draw first to compute layout positions without recentering
+    familienbaum.draw(false);
+
+    // 4. Calculate bounding box of targets to center the view
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    
+    // Note: In renderer, SVG X = node.y, SVG Y = node.x
+    // We must search in the filtered DAG (familienbaum.dag) which has the computed coordinates
+    let foundCount = 0;
+    if (familienbaum.dag) {
+        for (let id of foundNodes) {
+            try {
+                const node = familienbaum.dag.find_node(id);
+                if (node) {
+                    const x = node.y; // SVG x
+                    const y = node.x; // SVG y
+                    if (x < minX) minX = x;
+                    if (x > maxX) maxX = x;
+                    if (y < minY) minY = y;
+                    if (y > maxY) maxY = y;
+                    foundCount++;
+                }
+            } catch(e) { /* Node might not be in filtered DAG if something went wrong, ignore */ }
+        }
+    }
+    
+    if (foundCount === 0) return;
+
+    // Viewport dimensions
+    const width = parseFloat(familienbaum.svg.attr("width"));
+    const height = parseFloat(familienbaum.svg.attr("height"));
+    
+    // Calculate center of bounding box
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    
+    // Fit to bounds with padding
+    const padding = 150;
+    const boxWidth = maxX - minX + padding * 2;
+    const boxHeight = maxY - minY + padding * 2;
+    
+    let scale = 1;
+    // Only scale down if they don't fit, or if we want to ensure they are well-framed
+    // Let's try to fit them in 90% of screen if they are spread out
+    if (boxWidth > 0 && boxHeight > 0) {
+        scale = Math.min(width / boxWidth, height / boxHeight);
+    }
+    
+    // Clamp scale to reasonable limits
+    scale = Math.min(scale, 1.2); // Allow slight zoom in
+    scale = Math.max(scale, 0.3); // Don't zoom out too much
+
+    // Calculate translate to center the bounding box
+    const tx = width / 2 - cx * scale;
+    const ty = height / 2 - cy * scale;
+
+    // Apply transform with transition
+    const transform = d3.zoomIdentity.translate(tx, ty).scale(scale);
+    
+    familienbaum.svg.transition()
+        .duration(1000)
+        .call(familienbaum.zoom.transform, transform);
+}
+
 function setupGlobalSearch(familienbaum: Familienbaum) {
     const input = document.getElementById('global-search-input') as HTMLInputElement;
     const datalist = document.getElementById('global-member-list');
@@ -65,6 +229,22 @@ function setupGlobalSearch(familienbaum: Familienbaum) {
     // Handle selection
     input.onchange = () => {
         const val = input.value;
+        const normalizedVal = normalizeString(val);
+        
+        if (normalizedVal === 'cirkin') {
+            triggerCirkinMode(familienbaum);
+            input.value = '';
+            input.blur();
+            return;
+        }
+
+        // Clear ugly mode on normal navigation
+        for (let node of familienbaum.dag_all.nodes()) {
+             if (node.added_data.is_ugly) {
+                 node.added_data.is_ugly = false;
+             }
+        }
+
         const id = nameToIdMap.get(val);
         if (id) {
             familienbaum.connectToVisible(id);

@@ -15,6 +15,9 @@ export function get_css_class(node: D3Node) {
     } else {
         cssClass += " highlighted";
     }
+    if (node.added_data.is_ugly) {
+        cssClass += " ugly";
+    }
     if (get_death_date(node)) {
         cssClass += " deceased";
 

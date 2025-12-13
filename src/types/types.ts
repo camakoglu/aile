@@ -39,6 +39,8 @@ export interface AddedData {
     is_visible: boolean;
     /** Whether this node is highlighted (e.g., in search results) */
     is_highlighted: boolean;
+    /** Whether this node should be rendered with "ugly" styling (Easter egg) */
+    is_ugly?: boolean;
     /** Calculated age/birth year for layout sorting */
     age?: number;
     /** The member data associated with this node (undefined for union nodes) */

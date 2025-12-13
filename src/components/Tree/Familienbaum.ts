@@ -303,6 +303,7 @@ export class Familienbaum {
                 if (kids) {
                     for (let childNode of kids) {
                         childNode.added_data.is_visible = false;
+                        if (childNode.added_data.is_ugly) childNode.added_data.is_ugly = false;
                         this.hideDescendants(childNode); // Recurse
                     }
                 }
