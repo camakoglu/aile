@@ -8,12 +8,73 @@ import { FamilyData } from './types/types';
 import { filterPatrilineal } from './utils/patrilinealFilter';
 import { buildIdMaps, decodeState, updateURL, shareCurrentState } from './services/state/urlState';
 import { store } from './services/state/store';
+import { get_name, is_member } from './components/Tree/dagWithFamilyData';
 
 // Constants
 const GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTzo66Bb8-z3QdqtNGZ9uhQJZJxePifl6nJwvtlot-3JtKp4YKYQdqJNFDY89lqHoMRdlKZmjWzh2OA/pub?output=csv";
 
 // Initialize Dark Mode
 initDarkMode();
+
+function setupGlobalSearch(familienbaum: Familienbaum) {
+    const input = document.getElementById('global-search-input') as HTMLInputElement;
+    const datalist = document.getElementById('global-member-list');
+    
+    if (!input || !datalist) return;
+
+    // Clear existing options
+    datalist.innerHTML = '';
+    
+    const nameToIdMap = new Map<string, string>();
+    const nodes = familienbaum.dag_all.nodes().filter(n => is_member(n));
+
+    nodes.forEach(n => {
+        const name = get_name(n);
+        const bdate = (n.added_data.input as any).birth_date;
+        let extra = "";
+        if (bdate) extra += ` (d. ${bdate})`;
+        
+        try {
+            const unions = familienbaum.dag_all.parents(n);
+            if (unions.length > 0) {
+                const parents = familienbaum.dag_all.parents(unions[0]);
+                const father = parents.find(p => (p.added_data.input as any)?.gender === 'E');
+                const parentName = father ? get_name(father) : (parents.length > 0 ? get_name(parents[0]) : "");
+                if (parentName) extra += ` - Baba: ${parentName}`;
+            }
+        } catch(e) {}
+
+        let displayValue = `${name}${extra}`;
+        
+        // Handle duplicates
+        if (nameToIdMap.has(displayValue)) {
+            let counter = 2;
+            while (nameToIdMap.has(`${displayValue} (${counter})`)) {
+                counter++;
+            }
+            displayValue = `${displayValue} (${counter})`;
+        }
+        
+        nameToIdMap.set(displayValue, n.data);
+        
+        const option = document.createElement('option');
+        option.value = displayValue;
+        datalist.appendChild(option);
+    });
+
+    // Handle selection
+    input.onchange = () => {
+        const val = input.value;
+        const id = nameToIdMap.get(val);
+        if (id) {
+            familienbaum.connectToVisible(id);
+            input.value = ''; // Reset input
+            input.blur();
+        }
+    };
+    
+    // Also handle input event for immediate feedback if desired, but 'change' is standard for datalist selection
+}
 
 // Main initialization
 async function init() {
@@ -164,6 +225,8 @@ async function init() {
                 familienbaum.updateData(displayData);
             }
 
+            setupGlobalSearch(familienbaum); // Update search list with new data
+
             if (savedTransform) {
                 try {
                     const transform = d3.zoomIdentity.translate(savedTransform.x, savedTransform.y).scale(savedTransform.k);
@@ -179,6 +242,7 @@ async function init() {
         svg.selectAll("*").remove(); // Clear previous if any (though usually empty on first load)
 
         familienbaum = new Familienbaum(displayData, svg as any);
+        setupGlobalSearch(familienbaum); // Initialize search list
 
         const onViewChange = () => {
             // On view change (zoom/pan/expand)

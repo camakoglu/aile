@@ -569,4 +569,60 @@ export class Familienbaum {
         // 3. Draw
         this.draw(false);
     }
+
+    connectToVisible(targetId: string) {
+        const targetNode = this.dag_all.find_node(targetId);
+        if (!targetNode) return;
+
+        // If already visible, just focus
+        if (targetNode.added_data.is_visible) {
+            this.draw(true, targetId);
+            return;
+        }
+
+        // BFS to find nearest visible node
+        const queue: { node: D3Node, path: D3Node[] }[] = [];
+        const visited = new Set<string>();
+        
+        queue.push({ node: targetNode, path: [targetNode] });
+        visited.add(targetNode.data);
+
+        let foundPath: D3Node[] | null = null;
+
+        while (queue.length > 0) {
+            const { node, path } = queue.shift()!;
+
+            if (node.added_data.is_visible) {
+                foundPath = path;
+                break;
+            }
+
+            const neighbors = this.dag_all.first_level_adjacency(node);
+            for (let neighbor of neighbors) {
+                if (!visited.has(neighbor.data)) {
+                    visited.add(neighbor.data);
+                    queue.push({ node: neighbor, path: [...path, neighbor] });
+                }
+            }
+        }
+
+        if (foundPath) {
+            for (let n of foundPath) {
+                n.added_data.is_visible = true;
+                // Ensure Union parents are visible
+                if (!is_member(n)) {
+                    const parents = this.dag_all.parents(n);
+                    for (let p of parents) {
+                        p.added_data.is_visible = true;
+                    }
+                }
+            }
+            this.draw(true, targetId);
+        } else {
+            // Fallback: Just show target
+            targetNode.added_data.is_visible = true;
+            this.showDescendants(targetNode);
+            this.draw(true, targetId);
+        }
+    }
 }

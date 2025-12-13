@@ -95,6 +95,12 @@
 </head>
 
 <body>
+    <!-- Global Search -->
+    <div style="position: fixed; top: 24px; left: 24px; z-index: 1000;">
+        <input type="text" id="global-search-input" list="global-member-list" class="glass-input" placeholder="Kişi ara...">
+        <datalist id="global-member-list"></datalist>
+    </div>
+
     <!-- Global Patrilineal Toggle Button -->
     <div style="position: fixed; top: 24px; right: 24px; z-index: 1000; display: flex; gap: 12px;">
         <button id="reset-view-btn" class="glass-btn">
