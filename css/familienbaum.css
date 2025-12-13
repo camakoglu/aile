@@ -477,3 +477,31 @@ select.sidebar-input {
 .sidebar-section+.sidebar-section {
     margin-top: 16px;
 }
+
+.glass-input {
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: white;
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 12px 20px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    box-shadow: 0 4px 16px 0 rgba(31, 38, 135, 0.15);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: 0.3px;
+    outline: none;
+    width: 250px;
+}
+
+.glass-input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.glass-input:focus {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.25);
+}
