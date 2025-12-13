@@ -4,7 +4,7 @@ import { D3Node } from '../../types/types';
 import { get_name, get_image_path, is_member } from '../../components/Tree/dagWithFamilyData';
 import { COLUMN_MAPPING } from './config';
 import { initImageCropper, uploadPhoto } from './image';
-import { setCurrentEditedNode, setPendingChildPhoto } from './state';
+import { setCurrentEditedNode, setPendingChildPhoto, currentEditedNode } from './state';
 import { saveData, deleteChild } from './actions';
 import { showAddChildForm, showAddSpouseForm, showMoveChildForm } from './forms';
 
@@ -33,16 +33,9 @@ export function initEditor(familienbaum: Familienbaum) {
             }
         } else {
             // Normal edit mode: upload immediately
-            // We need currentEditedNode here. It is stored in state.ts but we need to import it or access it.
-            // Actually, we can just use the exported variable from state.ts if we import it.
-            // But let's check if we can pass it.
-            // The callback doesn't have access to currentEditedNode unless we import it.
-            // Let's import it inside the callback or use the module level variable.
-            import('./state').then(({ currentEditedNode }) => {
-                if (currentEditedNode) {
-                    uploadPhoto(file, currentEditedNode);
-                }
-            });
+            if (currentEditedNode) {
+                uploadPhoto(file, currentEditedNode);
+            }
         }
     });
 
